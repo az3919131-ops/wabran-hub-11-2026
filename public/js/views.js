@@ -9,7 +9,7 @@
   const reg = (id) => REGISTRY.find((p) => p.id === id);
   const link = (app, tab) => `#/app/${app}${tab ? "/" + tab : ""}`;
   let E = null;
-  const ui = { licF: "", licQ: "", cardQ: "", pendLic: null, pendCards: null };
+  const ui = { licF: "", licQ: "", cardQ: "", pendLic: null, pendCards: null, dsF: "", dsQ: "", pendDs: null };
 
   /* ---------- القائمة الجانبية ---------- */
   function renderNav(route) {
@@ -94,7 +94,9 @@
   }
   function kpis(list) { return `<div class="kpis">${list.map((k) => `<div class="kpi ${k[2] || ""}"><b>${k[1]}</b><span>${esc(k[0])}</span></div>`).join("")}</div>`; }
 
-  /* ---------- منصة مرتبطة ---------- */
+  /* ---------- المنصات الخمس: لوحة تحليلية داخلية + عرض المنصة الأصلية ---------- */
+  const KCOL = { done: "var(--ok)", active: "var(--mud)", pending: "var(--none)", problem: "var(--bad)", cancel: "var(--line)" };
+  const KP = { done: "p-ok", active: "p-warn", pending: "p-none", problem: "p-bad", cancel: "p-none" };
   function spark(vals) {
     const v = vals.map(Number).filter((x) => !isNaN(x));
     if (v.length < 2) return "";
@@ -102,36 +104,81 @@
     const pts = v.map((x, i) => `${(W - (i / (v.length - 1)) * W).toFixed(1)},${(H - 4 - ((x - mn) / (mx - mn || 1)) * (H - 8)).toFixed(1)}`).join(" ");
     return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="var(--mud)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
   }
+  const money = (n) => (n == null ? "—" : U.fmt(Math.round(n)));
+  function barList(items, max, fmt) {
+    return `<div class="bars">${items.map((x) => `<div class="bar" style="--c:${x.c || "var(--ink)"}"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.l)}</span><span class="tr"><span class="fl" style="width:${max ? (x.v / max) * 100 : 0}%"></span></span><span class="v num">${fmt ? fmt(x.v) : x.v}</span></div>`).join("")}</div>`;
+  }
+  function recTable(A, list, keys) {
+    const s = A.s;
+    keys = keys || Object.keys(s.cols).filter((k) => list.some((r) => r[k] != null && r[k] !== ""));
+    const cell = (r, k) => { const t = s.cols[k].type, v = r[k]; return t === "date" ? U.dmy(v) : t === "num" ? money(v) : esc(v ?? ""); };
+    return `<div class="tbl"><table><thead><tr>${keys.map((k) => `<th>${esc(s.cols[k].label)}</th>`).join("")}<th>التصنيف</th><th>التأخر</th></tr></thead><tbody>
+      ${list.slice(0, 500).map((r) => `<tr>${keys.map((k) => `<td${s.cols[k].type ? ' class="num"' : ""}>${cell(r, k)}</td>`).join("")}<td><span class="pill ${KP[r.kind]}">${esc(s.classes[r.cls].label)}</span></td><td class="num">${r.lateBy ? `<span class="pill p-bad">${r.lateBy} يوم</span>` : "—"}</td></tr>`).join("") || `<tr><td colspan="${keys.length + 2}" class="empty">لا سجلات مطابقة.</td></tr>`}</tbody></table></div>${list.length > 500 ? `<p class="meta">يُعرض أول 500 من ${list.length}. استخدم البحث للتضييق.</p>` : ""}`;
+  }
   function linkedApp(p, tab) {
-    const arr = S.snapshots[p.id] || [];
-    const s = arr[arr.length - 1];
+    const ds = S.ds[p.id];
+    const A = ds ? DS.analyze(p.id, ds) : null;
     const ev = E.items.find((i) => i.id === p.id);
-    tab = tab || "summary";
-    const tabs = [["summary", "الملخص"], ["board", "لوحة المنصة"], ["entry", "إدخال القراءة"], ["alerts", "التنبيهات", ev.alerts.length + ev.gaps.length]];
+    tab = tab || (A ? "overview" : "data");
+    const tabs = [["overview", "الصورة العامة"], ["analysis", "التحليل"], ["late", "المتأخرة", A ? A.late.length : null], ["all", "كل السجلات", A ? A.rows.length : null], ["data", "تحديث البيانات"], ["board", "المنصة الأصلية"]];
     let body = "";
+    const needData = `<div class="panel empty"><h3>لم تُرفع بيانات ${esc(p.short)} بعد</h3><p>ارفع ملف Excel أو الصق الجدول من المنصة الأصلية لتظهر هنا اللوحة التحليلية، وتدخل المنصة في تقرير الفرع والمساعد.</p><button class="btn pri" data-go="${link(p.id, "data")}" type="button">تحديث البيانات</button></div>`;
+    const stale = A && U.daysFrom(ds.asof) > 3 ? `<div class="note">البيانات بتاريخ ${U.dmy(ds.asof)} (منذ ${U.days(U.daysFrom(ds.asof))}). ارفع آخر نسخة من «تحديث البيانات».</div>` : "";
+
     if (tab === "board") body = frame(p.url, p.name);
-    else if (tab === "summary") {
-      if (!s) body = `<div class="panel empty"><h3>لا توجد قراءة لهذه المنصة بعد</h3><p>البوابة لا تستطيع قراءة أرقام هذه المنصة تلقائياً لأنها منشورة منفصلة. افتح «لوحة المنصة»، ثم أدخل أرقامها الرئيسية في «إدخال القراءة» لتدخل في تقرير الفرع والمساعد.</p><button class="btn pri" data-go="${link(p.id, "entry")}" type="button">أدخل أول قراءة</button></div>`;
-      else {
-        body = kpis(p.fields.map((f) => [f.label + (f.unit ? ` (${f.unit})` : ""), U.fmt(s.values[f.key])]).concat([["الحالة", LV[ev.level], ev.level === "ok" ? "ok" : ev.level === "bad" ? "bad" : ev.level === "warn" ? "warn" : ""]])) +
-          `<p class="meta">آخر قراءة ${U.dmy(s.date)}${s.note ? " · " + esc(s.note) : ""}. ${esc(ev.issue)}</p>
-          <div class="section two">${p.fields.map((f) => `<div class="panel"><h3>${esc(f.label)}</h3><p class="hint">آخر ${Math.min(arr.length, 30)} قراءة</p>${spark(arr.slice(-30).map((x) => x.values[f.key])) || '<p class="hint">يظهر الاتجاه بعد قراءتين.</p>'}</div>`).join("")}</div>
-          <section class="section"><h2>سجل القراءات</h2><div class="tbl"><table><thead><tr><th>التاريخ</th>${p.fields.map((f) => `<th>${esc(f.label)}</th>`).join("")}<th>ملاحظة</th></tr></thead><tbody>
-          ${arr.slice().reverse().map((x) => `<tr><td>${U.dmy(x.date)}</td>${p.fields.map((f) => `<td class="num">${U.fmt(x.values[f.key])}</td>`).join("")}<td>${esc(x.note || "")}</td></tr>`).join("")}</tbody></table></div></section>`;
-      }
-    } else if (tab === "entry") {
-      const d = U.iso(U.today());
-      body = `<div class="panel"><h3>إدخال قراءة ${esc(p.short)}</h3><p class="hint">انسخ الأرقام من «لوحة المنصة». قراءة نفس اليوم تستبدل السابقة. تُحفظ في القاعدة المشتركة فتظهر على كل الأجهزة.</p>
-        <form class="form" id="snapForm" data-app="${p.id}">
-          <label class="f">التاريخ<input type="date" name="date" value="${d}" required></label>
-          ${p.fields.map((f) => `<label class="f">${esc(f.label)}${f.unit ? ` (${f.unit})` : ""}<input type="number" step="any" min="0" inputmode="decimal" name="${f.key}" value="${s && s.date === d ? s.values[f.key] ?? "" : ""}"></label>`).join("")}
-          <label class="f" style="grid-column:1/-1">ملاحظة (اختياري)<input type="text" name="note" maxlength="200" placeholder="مثال: توقف فريقين بسبب الأمطار"></label>
-          <div><button class="btn pri" type="submit">حفظ القراءة</button></div></form><p class="msg" id="snapMsg" role="status"></p></div>`;
-    } else {
-      const all = ev.alerts.concat(ev.gaps);
-      body = `<div class="panel">${all.length ? `<ul class="list">${all.map((x) => `<li class="lvl-${x.level}"><div>${esc(x.text)}</div></li>`).join("")}</ul>` : `<div class="empty">لا تنبيهات لهذه المنصة.</div>`}</div>`;
+    else if (tab === "data") body = dataTab(p, A, ds);
+    else if (!A) body = needData;
+    else if (tab === "overview") {
+      const s = A.s, open = A.live.length - A.done.length;
+      let k;
+      if (p.id === "invoices") k = [["عدد الفواتير", A.live.length], ["إجمالي القيمة (ريال)", money(A.total)], ["المحصّل (ريال)", money(A.doneAmt), "ok"], ["غير المحصّل (ريال)", money(A.total - A.doneAmt), "warn"], ["نسبة التحصيل", (A.score ?? "—") + "%", ev.level], ["معلقة أكثر من " + s.sla + " يوماً", A.late.length, "bad"]];
+      else if (p.id === "schedule" || p.id === "dispatch") k = [["إجمالي " + (s.unit === "مهمة" ? "المهام" : "الأعمال"), A.live.length], ["اليوم", A.todays.length], ["منجز اليوم", A.todays.filter((r) => r.kind === "done").length, "ok"], ["منجز إجمالاً", A.done.length, "ok"], ["نسبة الإنجاز حتى اليوم", (A.score ?? "—") + "%", ev.level], ["لم تنفذ في موعدها", A.late.length, "bad"]];
+      else k = [["الإجمالي", A.live.length], ["منجز", A.done.length, "ok"], ["مفتوح", open, "warn"], ["متأخر", A.late.length, "bad"], ["نسبة الإنجاز", (A.score ?? "—") + "%", ev.level]].concat(A.unassigned ? [["غير مسند", A.unassigned, "bad"]] : []).concat(s.amountKey && A.total ? [["القيمة الإجمالية (ريال)", money(A.total)]] : []);
+      const mxC = Math.max(1, ...A.byCls.map((c) => c.n));
+      const useAmt = p.id === "invoices";
+      const mxM = Math.max(1, ...A.months.map((m) => (useAmt ? m.amt : m.n)));
+      const d0 = A.dims[0];
+      body = stale + kpis(k) + `<p class="meta">${esc(ev.issue)}</p>
+        <div class="section two">
+          <div class="panel"><h3>حسب الحالة</h3><p class="hint">${useAmt ? "عدد الفواتير في كل حالة." : "أين تقف السجلات الآن."}</p>${barList(A.byCls.map((c) => ({ l: c.label, v: c.n, c: KCOL[c.kind] })), mxC)}</div>
+          <div class="panel"><h3>${useAmt ? "قيمة الفواتير شهرياً (ريال)" : "الحركة الشهرية"}</h3><p class="hint">آخر 12 شهراً حسب ${esc(s.cols[s.dateKey].label)}.</p>${barList(A.months.slice().reverse().map((m) => ({ l: m.label + " " + m.key.slice(0, 4), v: useAmt ? Math.round(m.amt) : m.n, c: m.done && !useAmt && m.done === m.n ? "var(--ok)" : "var(--ink)" })), mxM, useAmt ? money : null)}</div>
+        </div>
+        <div class="section two">
+          ${d0 ? `<div class="panel"><h3>حسب ${esc(d0.label)}</h3><p class="hint">الأكثر تأخراً أولاً. التفاصيل في «التحليل».</p>${barList(d0.groups.slice(0, 10).map((g) => ({ l: g.name, v: g.total, c: g.late ? "var(--bad)" : "var(--ink)" })), Math.max(1, ...d0.groups.map((g) => g.total)))}</div>` : ""}
+          <div class="panel"><h3>أكثر ما يحتاج متابعة</h3><p class="hint">أقدم المتأخرات.</p>${A.late.length ? `<ul class="list">${A.late.slice(0, 8).map((r) => `<li class="lvl-bad"><div><b>${esc(r.wo || r.no || "")}</b> ${esc(s.title(r))}<small>${esc(s.classes[r.cls].label)} · متأخر ${U.days(r.lateBy)}${r.eng ? " · " + esc(r.eng) : r.crew ? " · " + esc(r.crew) : r.to ? " · " + esc(r.to) : ""}</small></div></li>`).join("")}</ul>` : `<div class="empty">لا متأخرات.</div>`}</div>
+        </div>`;
+    } else if (tab === "analysis") {
+      body = stale + A.dims.map((d) => `<section class="section"><h2>حسب ${esc(d.label)}</h2><div class="tbl"><table><thead><tr><th>${esc(d.label)}</th><th>الإجمالي</th><th>منجز</th><th>مفتوح</th><th>متأخر</th><th>نسبة الإنجاز</th>${A.s.amountKey ? "<th>القيمة (ريال)</th>" : ""}</tr></thead><tbody>
+        ${d.groups.map((g) => `<tr><td>${esc(g.name)}</td><td class="num">${g.total}</td><td class="num">${g.done}</td><td class="num">${g.total - g.done}</td><td class="num">${g.late ? `<span class="pill p-bad">${g.late}</span>` : 0}</td><td class="num">${Math.round((g.done / g.total) * 100)}%</td>${A.s.amountKey ? `<td class="num">${money(g.amt)}</td>` : ""}</tr>`).join("")}</tbody></table></div></section>`).join("") || `<div class="empty">لا توجد أعمدة تحليل في الملف (${A.s.dims.map((d) => d[1]).join("، ")}).</div>`;
+    } else if (tab === "late") body = stale + (A.late.length ? recTable(A, A.late) : `<div class="panel empty"><h3>لا متأخرات</h3><p>كل السجلات المفتوحة ضمن موعدها.</p></div>`);
+    else {
+      const q = ui.dsQ.trim().toLowerCase();
+      const list = A.rows.filter((r) => (!ui.dsF || r.cls === ui.dsF) && (!q || Object.values(r).join(" ").toLowerCase().includes(q)));
+      body = `<div class="chips"><button class="chip" data-dsf="" aria-pressed="${!ui.dsF}" type="button">الكل ${A.rows.length}</button>${A.byCls.map((c) => `<button class="chip" style="--c:${KCOL[c.kind]}" data-dsf="${c.k}" aria-pressed="${ui.dsF === c.k}" type="button"><i></i>${esc(c.label)} ${c.n}</button>`).join("")}</div>
+        <label class="f" style="max-width:340px;margin-bottom:12px">بحث<input type="search" id="dsQ" value="${esc(ui.dsQ)}" placeholder="أي رقم أو اسم أو موقع"></label>` + recTable(A, list);
     }
     view.innerHTML = appShell(p, tabs, tab, body);
+    if (tab === "data" && ui.pendDs && ui.pendDs.id === p.id) renderDsPend();
+  }
+  function dataTab(p, A, ds) {
+    const s = DS.SCHEMAS[p.id];
+    return `<div class="panel"><h3>رفع بيانات ${esc(p.short)}</h3><p class="hint">ملف Excel أو CSV مُصدّر من المنصة الأصلية، أو أي جدول يحتوي هذه الأعمدة (يكفي بعضها، والعناوين تُكتشف بالعربي أو الإنجليزي): ${Object.values(s.cols).map((c) => esc(c.label)).join("، ")}.</p>
+        <div class="drop"><p style="margin:0 0 10px">اختر الملف</p><input type="file" id="dsFile" data-app="${p.id}" accept=".xlsx,.xls,.csv"></div>
+        <details class="section"><summary style="cursor:pointer;font-weight:600">أو الصق الجدول منسوخاً من المنصة الأصلية</summary>
+          <p class="hint" style="margin-top:8px">افتح «المنصة الأصلية»، حدّد الجدول مع صف العناوين، انسخه (Ctrl+C) والصقه هنا.</p>
+          <textarea id="dsPaste" rows="6" style="width:100%" placeholder="الصق هنا"></textarea>
+          <div style="margin-top:8px"><button class="btn" type="button" data-dsparse="${p.id}">قراءة الجدول الملصق</button></div></details>
+        <div id="dsPend"></div><p class="msg" id="dsMsg" role="status"></p>
+        <div class="acts" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" data-tpl="${p.id}">تنزيل نموذج الأعمدة</button>${A ? `<button class="btn" type="button" data-dscsv="${p.id}">تنزيل البيانات الحالية</button><button class="btn" type="button" data-dsclear="${p.id}">حذف البيانات</button>` : ""}</div></div>
+      ${A ? `<div class="panel section"><h3>البيانات الحالية</h3><p class="hint">${A.rows.length} سجل بتاريخ ${U.dmy(ds.asof)}${ds.sheet ? " من الورقة «" + esc(ds.sheet) + "»" : ""}. الأعمدة المقروءة: ${esc((ds.mapped || []).join("، "))}.${ds.missing && ds.missing.length ? " غير موجودة: " + esc(ds.missing.join("، ")) + "." : ""}</p></div>` : ""}`;
+  }
+  function renderDsPend() {
+    const el = $("#dsPend"); if (!el || !ui.pendDs) return; const P = ui.pendDs, s = DS.SCHEMAS[P.id];
+    const keys = Object.keys(s.cols).filter((k) => P.rows.some((r) => r[k] != null && r[k] !== ""));
+    el.innerHTML = `<div style="margin-top:14px;display:grid;gap:10px"><b>عدد السجلات المقروءة: ${P.rows.length}${P.sheet ? " من الورقة «" + esc(P.sheet) + "»" : ""}.</b>
+      <span class="hint">الأعمدة المقروءة: ${esc(P.mapped.join("، "))}.${P.missing.length ? " غير موجودة: " + esc(P.missing.join("، ")) + "." : ""}</span>
+      <div class="tbl"><table><thead><tr>${keys.map((k) => `<th>${esc(s.cols[k].label)}</th>`).join("")}</tr></thead><tbody>${P.rows.slice(0, 6).map((r) => `<tr>${keys.map((k) => `<td>${esc(s.cols[k].type === "date" ? U.dmy(r[k]) : r[k] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+      <div><button class="btn pri" type="button" id="dsCommit">اعتماد واستبدال البيانات</button> <button class="btn" type="button" id="dsCancel">إلغاء</button></div></div>`;
   }
 
   /* ---------- الرخص ---------- */
@@ -301,7 +348,8 @@
     else { const p = reg(r.app); if (p.kind === "linked") linkedApp(p, r.tab); else if (p.id === "licenses") licensesApp(p, r.tab); else safetyApp(p, r.tab); }
     $("#side").classList.remove("open"); $("#menuBtn").setAttribute("aria-expanded", "false");
   }
-  window.addEventListener("hashchange", () => { render(); view.focus({ preventScroll: true }); window.scrollTo(0, 0); });
+  let lastApp = null;
+  window.addEventListener("hashchange", () => { const a = parse().app; if (a !== lastApp) { ui.dsF = ""; ui.dsQ = ""; lastApp = a; } render(); view.focus({ preventScroll: true }); window.scrollTo(0, 0); });
 
   /* ---------- الأحداث ---------- */
   function download(name, rows) {
@@ -310,12 +358,26 @@
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
   document.addEventListener("click", async (ev) => {
-    const t = ev.target.closest("[data-go],[data-licf],[data-csv],[data-theme],#licCommit,#licCancel,#cardCommit,#cardCancel,#genSummary,#settingsBtn,#menuBtn");
+    const t = ev.target.closest("[data-dsf],[data-tpl],[data-dscsv],[data-dsclear],[data-dsparse],#dsCommit,#dsCancel,[data-go],[data-licf],[data-csv],[data-theme],#licCommit,#licCancel,#cardCommit,#cardCancel,#genSummary,#settingsBtn,#menuBtn");
     if (!t) return;
     if (t.dataset.go) { location.hash = t.dataset.go; return; }
     if (t.id === "menuBtn") { const o = $("#side").classList.toggle("open"); t.setAttribute("aria-expanded", String(o)); return; }
     if (t.id === "settingsBtn") { location.hash = "#/settings"; return; }
     if (t.dataset.licf !== undefined) { ui.licF = t.dataset.licf; render(); return; }
+    if (t.dataset.dsf !== undefined) { ui.dsF = t.dataset.dsf; render(); return; }
+    if (t.dataset.tpl) { download(`template-${t.dataset.tpl}.csv`, DS.template(t.dataset.tpl)); return; }
+    if (t.dataset.dscsv) { const s = DS.SCHEMAS[t.dataset.dscsv], keys = Object.keys(s.cols); download(`${t.dataset.dscsv}-${U.iso(U.today())}.csv`, [keys.map((k) => s.cols[k].label)].concat(S.ds[t.dataset.dscsv].rows.map((r) => keys.map((k) => r[k] ?? "")))); return; }
+    if (t.dataset.dsclear) { if (!confirm("حذف بيانات هذه المنصة من القاعدة المشتركة؟")) return; const id = t.dataset.dsclear; await Store.put("ds_" + id, { rows: [] }); delete S.ds[id]; U.ls.set("ctxAt", 0); render(); return; }
+    if (t.dataset.dsparse) { const m = $("#dsMsg"); try { const r = DS.parsePaste($("#dsPaste").value, t.dataset.dsparse); if (!r.rows.length) throw new Error("لم أجد صفوفاً تحت العناوين."); ui.pendDs = { id: t.dataset.dsparse, ...r }; renderDsPend(); m.className = "msg"; m.textContent = "راجع العينة ثم اعتمد."; } catch (e) { m.className = "msg err"; m.textContent = e.message; } return; }
+    if (t.id === "dsCancel") { ui.pendDs = null; $("#dsPend").innerHTML = ""; return; }
+    if (t.id === "dsCommit") {
+      t.disabled = true; const P = ui.pendDs;
+      const val = { asof: U.iso(U.today()), rows: P.rows, mapped: P.mapped, missing: P.missing, sheet: P.sheet || "" };
+      const r = await Store.put("ds_" + P.id, val);
+      if (!r.ok) { $("#dsMsg").className = "msg err"; $("#dsMsg").textContent = r.error; t.disabled = false; return; }
+      S.ds[P.id] = val; ui.pendDs = null; ui.dsF = ""; ui.dsQ = ""; U.ls.set("ctxAt", 0); HUB.pushContext();
+      location.hash = link(P.id, "overview"); render(); return;
+    }
     if (t.dataset.theme) { const k = t.dataset.theme; U.ls.set("theme", k); applyTheme(); render(); return; }
     if (t.dataset.csv === "licenses") download(`licenses-${U.iso(U.today())}.csv`, [["رقم الرخصة", "أمر العمل", "الموقع", "المهندس", "الانتهاء", "الموقف", "الحالة", "أيام التجاوز", "السبب", "الإجراء"]].concat(HUB.licRows().map((r) => [r.id, r.wo, r.loc, r.eng, r.end, r.clsName, r.closed ? "مغلقة" : "مفتوحة", r.closed ? "" : r.over, r.why, r.act])));
     if (t.dataset.csv === "cards") download(`safety-cards-${U.iso(U.today())}.csv`, [["رقم الموظف", "الاسم", "الإقامة", "بطاقة المقاول", "SAP", "الانتهاء", "الأيام المتبقية", "الحالة", "ملاحظات"]].concat(HUB.cardRows().map((c) => [c.emp, c.name, c.iqama, c.badge, c.sap, c.exp, c.left, HUB.CARD_ST[c.st], c.remark])));
@@ -346,18 +408,20 @@
   });
   document.addEventListener("input", (ev) => {
     if (ev.target.id === "licQ") { ui.licQ = ev.target.value; render(); const i = $("#licQ"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
+    if (ev.target.id === "dsQ") { ui.dsQ = ev.target.value; render(); const i = $("#dsQ"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
     if (ev.target.id === "cardQ") { ui.cardQ = ev.target.value; render(); const i = $("#cardQ"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
   });
   document.addEventListener("change", (ev) => {
     const f = ev.target.files && ev.target.files[0]; if (!f) return;
-    const isLic = ev.target.id === "licFile", isCard = ev.target.id === "cardFile"; if (!isLic && !isCard) return;
-    const m = $(isLic ? "#licMsg" : "#cardMsg");
+    const isLic = ev.target.id === "licFile", isCard = ev.target.id === "cardFile", isDs = ev.target.id === "dsFile"; if (!isLic && !isCard && !isDs) return;
+    const m = $(isLic ? "#licMsg" : isCard ? "#cardMsg" : "#dsMsg"), dsId = ev.target.dataset.app;
     if (typeof XLSX === "undefined") { m.className = "msg err"; m.textContent = "مكتبة قراءة Excel لم تُحمّل بعد. تحقق من الاتصال وأعد المحاولة."; return; }
     const rd = new FileReader();
     rd.onload = () => {
       try {
         const buf = new Uint8Array(rd.result);
-        if (isLic) { ui.pendLic = parseLicenses(buf, $("#licSwap").checked); renderLicPend(); }
+        if (isDs) { const r = DS.parseFile(buf, dsId); if (!r.rows.length) throw new Error("لم أجد صفوفاً تحت العناوين."); ui.pendDs = { id: dsId, ...r }; renderDsPend(); }
+        else if (isLic) { ui.pendLic = parseLicenses(buf, $("#licSwap").checked); renderLicPend(); }
         else { ui.pendCards = parseCards(buf); renderCardPend(); }
         m.className = "msg"; m.textContent = "راجع الأرقام ثم اعتمد.";
       } catch (e) { m.className = "msg err"; m.textContent = e.message || "تعذّرت قراءة الملف."; }

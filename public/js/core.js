@@ -60,7 +60,8 @@
   };
 
   /* ---------- الحالة ---------- */
-  const S = { snapshots: {}, licenses: null, cards: null, summary: null, loaded: false };
+  const S = { snapshots: {}, licenses: null, cards: null, summary: null, ds: {}, loaded: false };
+  const LINKED = () => REGISTRY.filter((p) => p.kind === "linked").map((p) => p.id);
 
   async function loadAll() {
     const [snap, lic, cards, summary] = await Promise.all([Store.get("snapshots"), Store.get("licenses"), Store.get("cards"), Store.get("summary")]);
@@ -68,6 +69,9 @@
     S.licenses = lic && lic.rows ? lic : SEED.licenses;
     S.cards = cards && cards.rows ? cards : SEED.cards;
     S.summary = summary;
+    const ids = LINKED();
+    const dss = await Promise.all(ids.map((id) => Store.get("ds_" + id)));
+    ids.forEach((id, i) => { if (dss[i] && dss[i].rows && dss[i].rows.length) S.ds[id] = dss[i]; });
     S.loaded = true;
   }
 
@@ -122,11 +126,15 @@
   function evaluate(p) {
     const out = { id: p.id, name: p.name, short: p.short, level: "none", score: null, fig: "—", figLabel: "", issue: "", alerts: [], gaps: [] };
 
+    if (p.kind === "linked" && S.ds[p.id] && window.DS) {
+      DS.evaluate(p, S.ds[p.id], out);
+      return out;
+    }
     if (p.kind === "linked") {
       const s = latest(p.id);
       if (!s) {
-        out.issue = "لا توجد قراءة بعد. أدخل آخر أرقام المنصة ليظهر موقفها هنا.";
-        out.gaps.push({ level: "none", text: `${p.name}: لم تُدخل أي قراءة`, app: p.id, tab: "entry" });
+        out.issue = "لا توجد بيانات بعد. ارفع ملف المنصة أو الصق جدولها ليظهر تحليلها هنا.";
+        out.gaps.push({ level: "none", text: `${p.name}: لم تُرفع بياناتها بعد`, app: p.id, tab: "data" });
         return out;
       }
       const v = s.values || {};
@@ -136,9 +144,9 @@
       out.fig = U.fmt(v[f0.key]);
       out.figLabel = f0.label;
       if (h) { out.level = h.level; out.score = h.score; out.issue = h.text; }
-      if (age > 2) out.gaps.push({ level: "warn", text: `${p.name}: آخر قراءة منذ ${U.days(age)} (${U.dmy(s.date)})`, app: p.id, tab: "entry" });
+      if (age > 2) out.gaps.push({ level: "warn", text: `${p.name}: آخر قراءة منذ ${U.days(age)} (${U.dmy(s.date)})`, app: p.id, tab: "data" });
       const missing = p.fields.filter((f) => v[f.key] == null || v[f.key] === "").map((f) => f.label);
-      if (missing.length) out.gaps.push({ level: "warn", text: `${p.name}: خانات ناقصة في آخر قراءة: ${missing.join("، ")}`, app: p.id, tab: "entry" });
+      if (missing.length) out.gaps.push({ level: "warn", text: `${p.name}: خانات ناقصة في آخر قراءة: ${missing.join("، ")}`, app: p.id, tab: "data" });
       if (h && h.level !== "ok") out.alerts.push({ level: h.level, text: `${p.name}: ${h.text}`, app: p.id, tab: "summary" });
       if (s.note) out.alerts.push({ level: "none", text: `${p.name}: ملاحظة المدخل — ${s.note}`, app: p.id, tab: "summary" });
       return out;
@@ -207,7 +215,8 @@
     E.items.forEach((i) => L.push(`- ${i.name}: الحالة ${i.level}، ${i.fig} ${i.figLabel}. ${i.issue}`));
     L.push("\n## التنبيهات"); E.alerts.forEach((a) => L.push(`- [${a.level}] ${a.text}`));
     L.push("\n## نواقص البيانات"); E.gaps.forEach((g) => L.push(`- ${g.text}`));
-    REGISTRY.filter((p) => p.kind === "linked").forEach((p) => {
+    REGISTRY.filter((p) => p.kind === "linked" && S.ds[p.id] && window.DS).forEach((p) => L.push(DS.context(p, S.ds[p.id])));
+    REGISTRY.filter((p) => p.kind === "linked" && !S.ds[p.id]).forEach((p) => {
       const arr = (S.snapshots[p.id] || []).slice(-5);
       if (!arr.length) return;
       L.push(`\n## ${p.name} — آخر القراءات`);
