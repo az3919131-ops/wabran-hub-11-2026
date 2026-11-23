@@ -282,16 +282,21 @@
   }
 
   /* ---------- سياق المساعد ---------- */
+  const ak0 = (A, x) => (A.s.amountKey ? ` (${U.fmt(Math.round(A.sum(x)))} ريال)` : "");
   function context(p, ds) {
     const A = analyze(p.id, ds), s = A.s, L = [];
     L.push(`\n## ${p.name} (بيانات بتاريخ ${ds.asof}، ${A.W(A.rows)} ${s.unit})`);
     L.push(`الحالات: ` + A.byCls.map((c) => `${c.label}=${c.n}${c.amt != null ? " (" + U.fmt(Math.round(c.amt)) + " ريال)" : ""}`).join("، "));
     L.push(`شهرياً: ` + A.months.map((m) => `${m.key}: ${m.n}${m.amt != null ? " / " + U.fmt(Math.round(m.amt)) + " ريال" : ""}`).join("؛ "));
+    if (A.open.length && p.id !== "schedule") { const B = [[0, 90], [90, 365], [365, 1095], [1095, 1e9]]; L.push(`عمر المفتوح: ` + B.map(([a, b]) => { const x = A.open.filter((r) => r.age != null && r.age >= a && r.age < b); return `${a}-${b === 1e9 ? "∞" : b} يوم: ${A.W(x)}${ak0(A, x)}`; }).join("؛ ")); }
     A.dims.forEach((d) => L.push(`حسب ${d.label}: ` + d.groups.slice(0, 15).map((g) => `${g.name}: ${g.total} (منجز ${g.done}، متأخر ${g.late}${g.amt != null ? "، " + U.fmt(Math.round(g.amt)) + " ريال" : ""})`).join("؛ ")));
-    const keys = Object.keys(s.cols);
-    const list = (p.id === "schedule" ? A.rows.slice().sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 120) : A.open.filter((r) => !r._n).slice(0, 400));
-    L.push(`${p.id === "schedule" ? "آخر أيام العمل" : "السجلات المفتوحة"} (${keys.join("|")}|التأخر):`);
-    list.forEach((r) => L.push(keys.map((k) => r[k] ?? "").join("|") + "|" + (r.lateBy || "")));
+    const keys = Object.keys(s.cols).filter((k) => k !== "status" || p.id !== "schedule");
+    const ak = s.amountKey;
+    // أهم 60 سجلاً مفتوحاً: الأعلى قيمة ثم الأقدم. الأرقام الكاملة في الملخصات أعلاه.
+    const list = p.id === "schedule" ? A.rows.slice().sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 40)
+      : A.open.filter((r) => !r._n).sort((a, b) => (ak ? (Number(b[ak]) || 0) - (Number(a[ak]) || 0) : 0) || (b.age || 0) - (a.age || 0)).slice(0, 60);
+    L.push(`${p.id === "schedule" ? "آخر 40 يوم عمل" : "أهم 60 سجلاً مفتوحاً (الأعلى قيمة)"} (${keys.join("|")}|العمر بالأيام):`);
+    list.forEach((r) => L.push(keys.map((k) => String(r[k] ?? "").slice(0, 70)).join("|") + "|" + (r.age ?? "")));
     return L.join("\n");
   }
 
