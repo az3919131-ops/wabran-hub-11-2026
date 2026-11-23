@@ -2,7 +2,7 @@ import { getStore } from "@netlify/blobs";
 import type { Config } from "@netlify/functions";
 
 // القاعدة المشتركة للبوابة: مفاتيح محددة فقط تُقرأ وتُكتب.
-const KEYS = new Set(["snapshots", "licenses", "cards", "summary", "context", "log", "ds_projects", "ds_schedule", "ds_invoices", "ds_assign", "ds_dispatch"]);
+const KEYS = new Set(["snapshots", "licenses", "cards", "summary", "context", "log", "ds_projects", "ds_schedule", "ds_invoices", "ds_assign", "ds_dispatch", "sync"]);
 const MAX_BYTES = 4_000_000;
 
 export default async (req: Request) => {

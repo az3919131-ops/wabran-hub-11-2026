@@ -105,6 +105,7 @@
     return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="var(--mud)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
   }
   const money = (n) => (n == null ? "—" : U.fmt(Math.round(n)));
+  const big = (n) => (n == null ? "—" : Math.abs(n) >= 1e6 ? (n / 1e6).toFixed(2) + "<small> مليون ريال</small>" : U.fmt(Math.round(n)) + "<small> ريال</small>");
   function barList(items, max, fmt) {
     return `<div class="bars">${items.map((x) => `<div class="bar" style="--c:${x.c || "var(--ink)"}"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.l)}</span><span class="tr"><span class="fl" style="width:${max ? (x.v / max) * 100 : 0}%"></span></span><span class="v num">${fmt ? fmt(x.v) : x.v}</span></div>`).join("")}</div>`;
   }
@@ -112,18 +113,18 @@
     const s = A.s;
     keys = keys || Object.keys(s.cols).filter((k) => list.some((r) => r[k] != null && r[k] !== ""));
     const cell = (r, k) => { const t = s.cols[k].type, v = r[k]; return t === "date" ? U.dmy(v) : t === "num" ? money(v) : esc(v ?? ""); };
-    return `<div class="tbl"><table><thead><tr>${keys.map((k) => `<th>${esc(s.cols[k].label)}</th>`).join("")}<th>التصنيف</th><th>التأخر</th></tr></thead><tbody>
-      ${list.slice(0, 500).map((r) => `<tr>${keys.map((k) => `<td${s.cols[k].type ? ' class="num"' : ""}>${cell(r, k)}</td>`).join("")}<td><span class="pill ${KP[r.kind]}">${esc(s.classes[r.cls].label)}</span></td><td class="num">${r.lateBy ? `<span class="pill p-bad">${r.lateBy} يوم</span>` : "—"}</td></tr>`).join("") || `<tr><td colspan="${keys.length + 2}" class="empty">لا سجلات مطابقة.</td></tr>`}</tbody></table></div>${list.length > 500 ? `<p class="meta">يُعرض أول 500 من ${list.length}. استخدم البحث للتضييق.</p>` : ""}`;
+    return `<div class="tbl"><table><thead><tr>${keys.map((k) => `<th>${esc(s.cols[k].label)}</th>`).join("")}<th>التصنيف</th><th>${s.dueKey ? "التأخر (يوم)" : "العمر (يوم)"}</th></tr></thead><tbody>
+      ${list.slice(0, 500).map((r) => r._n ? `<tr><td colspan="${keys.length + 2}" style="color:var(--muted)">مجموعة منتهية: ${r._n} ${esc(s.unit)} — ${esc(s.title(r))} ${r.year || ""} — ${money(r[s.amountKey])} ريال</td></tr>` : `<tr>${keys.map((k) => `<td${s.cols[k].type ? ' class="num"' : ""}>${cell(r, k)}</td>`).join("")}<td><span class="pill ${KP[r.kind]}">${esc(s.classes[r.cls].label)}</span></td><td class="num">${r.lateBy ? `<span class="pill p-bad">${s.dueKey ? r.lateBy : r.age}</span>` : r.age != null && !r._n ? r.age : "—"}</td></tr>`).join("") || `<tr><td colspan="${keys.length + 2}" class="empty">لا سجلات مطابقة.</td></tr>`}</tbody></table></div>${list.length > 500 ? `<p class="meta">يُعرض أول 500 من ${list.length}. استخدم البحث للتضييق.</p>` : ""}`;
   }
   function linkedApp(p, tab) {
     const ds = S.ds[p.id];
     const A = ds ? DS.analyze(p.id, ds) : null;
     const ev = E.items.find((i) => i.id === p.id);
     tab = tab || (A ? "overview" : "data");
-    const tabs = [["overview", "الصورة العامة"], ["analysis", "التحليل"], ["late", "المتأخرة", A ? A.late.length : null], ["all", "كل السجلات", A ? A.rows.length : null], ["data", "تحديث البيانات"], ["board", "المنصة الأصلية"]];
+    const tabs = [["overview", "الصورة العامة"], ["analysis", "التحليل"]].concat(p.id === "schedule" ? [] : [["late", "المتأخرة", A ? A.W(A.late) : null]]).concat([ ["all", p.id === "schedule" ? "أيام العمل" : "كل السجلات", A ? A.W(A.rows) : null], ["data", "تحديث البيانات"], ["board", "المنصة الأصلية"]]);
     let body = "";
     const needData = `<div class="panel empty"><h3>لم تُرفع بيانات ${esc(p.short)} بعد</h3><p>ارفع ملف Excel أو الصق الجدول من المنصة الأصلية لتظهر هنا اللوحة التحليلية، وتدخل المنصة في تقرير الفرع والمساعد.</p><button class="btn pri" data-go="${link(p.id, "data")}" type="button">تحديث البيانات</button></div>`;
-    const stale = A && U.daysFrom(ds.asof) > 3 ? `<div class="note">البيانات بتاريخ ${U.dmy(ds.asof)} (منذ ${U.days(U.daysFrom(ds.asof))}). ارفع آخر نسخة من «تحديث البيانات».</div>` : "";
+    const stale = A && U.daysFrom(ds.asof) > 3 ? `<div class="note">آخر بيانات بتاريخ ${U.dmy(ds.asof)} (منذ ${U.days(U.daysFrom(ds.asof))}). ${DS.AUTO[p.id] ? "البوابة تسحب من المنصة الأصلية تلقائياً، والمنصة نفسها لم تُحدّث منذ ذلك التاريخ." : "ارفع آخر نسخة من «تحديث البيانات»."}</div>` : "";
 
     if (tab === "board") body = frame(p.url, p.name);
     else if (tab === "data") body = dataTab(p, A, ds);
@@ -131,22 +132,30 @@
     else if (tab === "overview") {
       const s = A.s, open = A.live.length - A.done.length;
       let k;
-      if (p.id === "invoices") k = [["عدد الفواتير", A.live.length], ["إجمالي القيمة (ريال)", money(A.total)], ["المحصّل (ريال)", money(A.doneAmt), "ok"], ["غير المحصّل (ريال)", money(A.total - A.doneAmt), "warn"], ["نسبة التحصيل", (A.score ?? "—") + "%", ev.level], ["معلقة أكثر من " + s.sla + " يوماً", A.late.length, "bad"]];
-      else if (p.id === "schedule" || p.id === "dispatch") k = [["إجمالي " + (s.unit === "مهمة" ? "المهام" : "الأعمال"), A.live.length], ["اليوم", A.todays.length], ["منجز اليوم", A.todays.filter((r) => r.kind === "done").length, "ok"], ["منجز إجمالاً", A.done.length, "ok"], ["نسبة الإنجاز حتى اليوم", (A.score ?? "—") + "%", ev.level], ["لم تنفذ في موعدها", A.late.length, "bad"]];
-      else k = [["الإجمالي", A.live.length], ["منجز", A.done.length, "ok"], ["مفتوح", open, "warn"], ["متأخر", A.late.length, "bad"], ["نسبة الإنجاز", (A.score ?? "—") + "%", ev.level]].concat(A.unassigned ? [["غير مسند", A.unassigned, "bad"]] : []).concat(s.amountKey && A.total ? [["القيمة الإجمالية (ريال)", money(A.total)]] : []);
+      const lateAmt = A.sum(A.late), openAmt = A.sum(A.open);
+      if (p.id === "invoices") k = [["عدد الفواتير", U.fmt(A.W(A.live))], ["إجمالي الصافي", big(A.total)], ["المحصّل", big(A.doneAmt), "ok"], ["غير المحصّل", big(A.total - A.doneAmt), "warn"], ["نسبة التحصيل", (A.score ?? "—") + "%", ev.level], ["غير محصّلة أقدم من " + s.sla + " يوماً", A.W(A.late), "bad"]];
+      else if (p.id === "schedule") { const m = A.months[A.months.length - 1], pm = A.months[A.months.length - 2], yr = A.months.filter((x) => x.key.startsWith(String(U.today().getFullYear()))).reduce((t, x) => t + x.amt, 0), dd = new Set(A.live.map((r) => r.date)).size; k = [["منفذ هذا الشهر", big(m.amt), "ok"], ["الشهر السابق", big(pm.amt)], ["منذ بداية السنة", big(yr)], ["أيام عمل آخر 30 يوماً", A.days30, ev.level], ["متوسط اليوم", big(A.total / Math.max(1, dd))], ["آخر تقرير", U.dmy(ds.asof)]]; }
+      else if (p.id === "dispatch") k = [["إجمالي المهام", A.W(A.live)], ["اليوم", A.todays.length], ["منجز اليوم", A.todays.filter((r) => r.kind === "done").length, "ok"], ["نسبة الإنجاز حتى اليوم", (A.score ?? "—") + "%", ev.level], ["لم تنفذ في موعدها", A.W(A.late), "bad"]];
+      else k = [["إجمالي الأوامر", U.fmt(A.W(A.live))], ["مفتوحة", U.fmt(A.W(A.open)), "warn"], ["قيمة المفتوحة", big(openAmt)], [s.slaText ? "متأخرة (" + s.sla + "+ يوم)" : "متأخرة", U.fmt(A.W(A.late)), "bad"], ["قيمة المتأخرة", big(lateAmt), "bad"], ["ضمن المدة", (A.score ?? "—") + "%", ev.level]];
       const mxC = Math.max(1, ...A.byCls.map((c) => c.n));
-      const useAmt = p.id === "invoices";
+      const useAmt = p.id === "invoices" || p.id === "schedule";
       const mxM = Math.max(1, ...A.months.map((m) => (useAmt ? m.amt : m.n)));
       const d0 = A.dims[0];
       body = stale + kpis(k) + `<p class="meta">${esc(ev.issue)}</p>
         <div class="section two">
-          <div class="panel"><h3>حسب الحالة</h3><p class="hint">${useAmt ? "عدد الفواتير في كل حالة." : "أين تقف السجلات الآن."}</p>${barList(A.byCls.map((c) => ({ l: c.label, v: c.n, c: KCOL[c.kind] })), mxC)}</div>
-          <div class="panel"><h3>${useAmt ? "قيمة الفواتير شهرياً (ريال)" : "الحركة الشهرية"}</h3><p class="hint">آخر 12 شهراً حسب ${esc(s.cols[s.dateKey].label)}.</p>${barList(A.months.slice().reverse().map((m) => ({ l: m.label + " " + m.key.slice(0, 4), v: useAmt ? Math.round(m.amt) : m.n, c: m.done && !useAmt && m.done === m.n ? "var(--ok)" : "var(--ink)" })), mxM, useAmt ? money : null)}</div>
+          ${p.id === "schedule" ? (() => { const byDay = new Map(); A.live.forEach((r) => byDay.set(r.date, (byDay.get(r.date) || 0) + (r.value || 0))); const ds14 = [...byDay].sort((x, y) => (x[0] < y[0] ? 1 : -1)).slice(0, 14); return `<div class="panel"><h3>آخر 14 يوم عمل (ريال)</h3><p class="hint">قيمة المنفذ في كل يوم مسجل.</p>${barList(ds14.map(([d, v]) => ({ l: U.dmy(d), v: Math.round(v), c: "var(--ok)" })), Math.max(1, ...ds14.map((x) => x[1])), money)}</div>`; })() : `<div class="panel"><h3>حسب الحالة</h3><p class="hint">${p.id === "invoices" ? "عدد الفواتير في كل تصنيف." : "أين تقف السجلات الآن."}</p>${barList(A.byCls.map((c) => ({ l: c.label, v: c.n, c: KCOL[c.kind] })), mxC)}</div>`}
+          <div class="panel"><h3>${useAmt ? (p.id === "schedule" ? "قيمة المنفذ شهرياً (ريال)" : "قيمة الفواتير شهرياً (ريال)") : "الحركة الشهرية"}</h3><p class="hint">آخر 12 شهراً حسب ${esc(s.cols[s.dateKey].label)}.</p>${barList(A.months.slice().reverse().map((m) => ({ l: m.label + " " + m.key.slice(0, 4), v: useAmt ? Math.round(m.amt) : m.n, c: m.done && !useAmt && m.done === m.n ? "var(--ok)" : "var(--ink)" })), mxM, useAmt ? money : null)}</div>
         </div>
         <div class="section two">
-          ${d0 ? `<div class="panel"><h3>حسب ${esc(d0.label)}</h3><p class="hint">الأكثر تأخراً أولاً. التفاصيل في «التحليل».</p>${barList(d0.groups.slice(0, 10).map((g) => ({ l: g.name, v: g.total, c: g.late ? "var(--bad)" : "var(--ink)" })), Math.max(1, ...d0.groups.map((g) => g.total)))}</div>` : ""}
-          <div class="panel"><h3>أكثر ما يحتاج متابعة</h3><p class="hint">أقدم المتأخرات.</p>${A.late.length ? `<ul class="list">${A.late.slice(0, 8).map((r) => `<li class="lvl-bad"><div><b>${esc(r.wo || r.no || "")}</b> ${esc(s.title(r))}<small>${esc(s.classes[r.cls].label)} · متأخر ${U.days(r.lateBy)}${r.eng ? " · " + esc(r.eng) : r.crew ? " · " + esc(r.crew) : r.to ? " · " + esc(r.to) : ""}</small></div></li>`).join("")}</ul>` : `<div class="empty">لا متأخرات.</div>`}</div>
-        </div>`;
+          ${d0 ? `<div class="panel"><h3>حسب ${esc(d0.label)}${useAmt ? " (ريال)" : ""}</h3><p class="hint">${p.id === "invoices" ? "للفواتير غير المحصّلة فقط." : useAmt ? "الأعلى قيمة أولاً." : "الأكثر تأخراً أولاً."} التفاصيل في «التحليل».</p>${useAmt ? barList(d0.groups.slice(0, 10).map((g) => ({ l: g.name, v: Math.round(g.amt || 0), c: g.late ? "var(--bad)" : "var(--ink)" })), Math.max(1, ...d0.groups.map((g) => g.amt || 0)), money) : barList(d0.groups.slice(0, 10).map((g) => ({ l: g.name, v: g.total, c: g.late ? "var(--bad)" : "var(--ink)" })), Math.max(1, ...d0.groups.map((g) => g.total)))}</div>` : ""}
+          <div class="panel"><h3>${p.id === "schedule" ? "آخر أيام العمل" : "أكثر ما يحتاج متابعة"}</h3><p class="hint">${p.id === "schedule" ? "قيمة المنفذ لكل موقع." : "أقدم المتأخرات."}</p>${p.id === "schedule" ? `<ul class="list">${A.rows.slice().sort((x, y) => (x.date < y.date ? 1 : -1)).slice(0, 8).map((r) => `<li class="lvl-ok"><div><b>${U.dmy(r.date)}</b> ${esc(r.site)}<small>${r.items} بند · ${money(r.value)} ريال</small></div></li>`).join("")}</ul>` : A.late.length ? `<ul class="list">${A.late.slice(0, 8).map((r) => `<li class="lvl-bad"><div><b>${esc(r.wo || r.no || "")}</b> ${esc(s.title(r))}${r[s.amountKey] ? " · " + money(r[s.amountKey]) + " ريال" : ""}<small>${esc(s.classes[r.cls].label)} · ${s.dueKey ? "متأخر " + U.days(r.lateBy) : "منذ " + U.days(r.age)}${r.eng ? " · " + esc(r.eng) : r.crew ? " · " + esc(r.crew) : r.to ? " · " + esc(r.to) : ""}</small></div></li>`).join("")}</ul>` : `<div class="empty">لا متأخرات.</div>`}</div>
+        </div>` + (p.id === "projects" || p.id === "assign" || p.id === "invoices" ? (() => {
+          const B = [["أقل من 90 يوماً", 0, 90], ["3 – 12 شهراً", 90, 365], ["1 – 2 سنة", 365, 730], ["2 – 3 سنوات", 730, 1095], ["أكثر من 3 سنوات", 1095, 1e9]];
+          const op = A.open.filter((r) => r.age != null), noDate = A.W(A.open) - A.W(op);
+          const g = B.map(([l, a, b]) => { const x = op.filter((r) => r.age >= a && r.age < b); return { l, n: A.W(x), amt: A.sum(x) }; });
+          const mx = Math.max(1, ...g.map((x) => x.n));
+          return `<section class="section panel"><h3>عمر ${p.id === "invoices" ? "الفواتير غير المحصّلة" : "الأوامر المفتوحة"}</h3><p class="hint">محسوب من ${esc(s.cols[s.dateKey].label)}${noDate ? ` · ${noDate} بلا تاريخ` : ""}.</p>${barList(g.map((x, i) => ({ l: x.l + (x.amt != null ? " · " + money(x.amt) + " ريال" : ""), v: x.n, c: i === 0 ? "var(--ok)" : i === 1 ? "var(--volt)" : "var(--bad)" })), mx)}</section>`;
+        })() : "");
     } else if (tab === "analysis") {
       body = stale + A.dims.map((d) => `<section class="section"><h2>حسب ${esc(d.label)}</h2><div class="tbl"><table><thead><tr><th>${esc(d.label)}</th><th>الإجمالي</th><th>منجز</th><th>مفتوح</th><th>متأخر</th><th>نسبة الإنجاز</th>${A.s.amountKey ? "<th>القيمة (ريال)</th>" : ""}</tr></thead><tbody>
         ${d.groups.map((g) => `<tr><td>${esc(g.name)}</td><td class="num">${g.total}</td><td class="num">${g.done}</td><td class="num">${g.total - g.done}</td><td class="num">${g.late ? `<span class="pill p-bad">${g.late}</span>` : 0}</td><td class="num">${Math.round((g.done / g.total) * 100)}%</td>${A.s.amountKey ? `<td class="num">${money(g.amt)}</td>` : ""}</tr>`).join("")}</tbody></table></div></section>`).join("") || `<div class="empty">لا توجد أعمدة تحليل في الملف (${A.s.dims.map((d) => d[1]).join("، ")}).</div>`;
@@ -162,7 +171,12 @@
   }
   function dataTab(p, A, ds) {
     const s = DS.SCHEMAS[p.id];
-    return `<div class="panel"><h3>رفع بيانات ${esc(p.short)}</h3><p class="hint">ملف Excel أو CSV مُصدّر من المنصة الأصلية، أو أي جدول يحتوي هذه الأعمدة (يكفي بعضها، والعناوين تُكتشف بالعربي أو الإنجليزي): ${Object.values(s.cols).map((c) => esc(c.label)).join("، ")}.</p>
+    const auto = DS.AUTO[p.id];
+    return `<div class="panel"><h3>مصدر البيانات</h3><p class="hint">${esc(s.origin)}. ${auto ? "تُسحب تلقائياً من المنصة الأصلية كل 6 ساعات." : p.id === "assign" ? "منصة أوامر العمل تتطلب تسجيل الدخول، فحُمّلت بياناتها مرة واحدة من قاعدة بياناتها. لتحديثها ارفع ملفها هنا أو اطلب إعادة السحب." : ""}</p>
+        ${s.note ? `<div class="note">${esc(s.note)}</div>` : ""}
+        ${ds ? `<p class="meta">آخر بيانات: ${U.dmy(ds.asof)}${ds.syncedAt ? " · آخر مزامنة " + esc(new Date(ds.syncedAt).toLocaleString("ar-SA-u-nu-latn")) : ""} · ${U.fmt(A ? A.W(A.rows) : 0)} ${esc(s.unit)}</p>` : ""}
+        ${auto ? `<button class="btn pri" type="button" id="syncNow">مزامنة الآن من المنصات الأصلية</button><p class="msg" id="syncMsg" role="status"></p>` : ""}</div>
+      <div class="panel section"><h3>رفع بيانات ${esc(p.short)} يدوياً</h3><p class="hint">ملف Excel أو CSV مُصدّر من المنصة الأصلية، أو أي جدول يحتوي هذه الأعمدة (يكفي بعضها، والعناوين تُكتشف بالعربي أو الإنجليزي): ${Object.values(s.cols).map((c) => esc(c.label)).join("، ")}.</p>
         <div class="drop"><p style="margin:0 0 10px">اختر الملف</p><input type="file" id="dsFile" data-app="${p.id}" accept=".xlsx,.xls,.csv"></div>
         <details class="section"><summary style="cursor:pointer;font-weight:600">أو الصق الجدول منسوخاً من المنصة الأصلية</summary>
           <p class="hint" style="margin-top:8px">افتح «المنصة الأصلية»، حدّد الجدول مع صف العناوين، انسخه (Ctrl+C) والصقه هنا.</p>
@@ -358,12 +372,23 @@
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
   document.addEventListener("click", async (ev) => {
-    const t = ev.target.closest("[data-dsf],[data-tpl],[data-dscsv],[data-dsclear],[data-dsparse],#dsCommit,#dsCancel,[data-go],[data-licf],[data-csv],[data-theme],#licCommit,#licCancel,#cardCommit,#cardCancel,#genSummary,#settingsBtn,#menuBtn");
+    const t = ev.target.closest("#syncNow,[data-dsf],[data-tpl],[data-dscsv],[data-dsclear],[data-dsparse],#dsCommit,#dsCancel,[data-go],[data-licf],[data-csv],[data-theme],#licCommit,#licCancel,#cardCommit,#cardCancel,#genSummary,#settingsBtn,#menuBtn");
     if (!t) return;
     if (t.dataset.go) { location.hash = t.dataset.go; return; }
     if (t.id === "menuBtn") { const o = $("#side").classList.toggle("open"); t.setAttribute("aria-expanded", String(o)); return; }
     if (t.id === "settingsBtn") { location.hash = "#/settings"; return; }
     if (t.dataset.licf !== undefined) { ui.licF = t.dataset.licf; render(); return; }
+    if (t.id === "syncNow") {
+      const m = $("#syncMsg"); t.disabled = true; m.className = "msg"; m.textContent = "جارٍ السحب من المنصات الأصلية…";
+      try {
+        const r = await fetch("/api/sync", { method: "POST", headers: { "x-hub-pin": U.ls.get("pin") || "" } });
+        const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status);
+        for (const id of Object.keys(DS.AUTO)) { const v = await Store.get("ds_" + id); if (v && v.rows && v.rows.length) S.ds[id] = v; }
+        U.ls.set("ctxAt", 0); HUB.pushContext(); render();
+        const m2 = $("#syncMsg"); if (m2) { m2.className = "msg ok"; m2.textContent = "تمت المزامنة: " + Object.entries(j.report).map(([k, v]) => k + " " + v).join("، "); }
+      } catch (e) { m.className = "msg err"; m.textContent = "تعذّرت المزامنة: " + (e.message || e); t.disabled = false; }
+      return;
+    }
     if (t.dataset.dsf !== undefined) { ui.dsF = t.dataset.dsf; render(); return; }
     if (t.dataset.tpl) { download(`template-${t.dataset.tpl}.csv`, DS.template(t.dataset.tpl)); return; }
     if (t.dataset.dscsv) { const s = DS.SCHEMAS[t.dataset.dscsv], keys = Object.keys(s.cols); download(`${t.dataset.dscsv}-${U.iso(U.today())}.csv`, [keys.map((k) => s.cols[k].label)].concat(S.ds[t.dataset.dscsv].rows.map((r) => keys.map((k) => r[k] ?? "")))); return; }
