@@ -1,0 +1,11 @@
+{
+  "name": "wabran-najran-hub",
+  "private": true,
+  "type": "module",
+  "description": "منصة إدارة أعمال المقاول (الوبران) فرع نجران",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.12.0",
+    "@netlify/blobs": "^11.1.9",
+    "@netlify/functions": "^6.1.1"
+  }
+}

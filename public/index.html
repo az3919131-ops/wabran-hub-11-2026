@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>منصة الوبران نجران</title>
+<meta name="description" content="منصة إدارة أعمال المقاول (الوبران) فرع نجران: ملخص تقارير الفرع، المنصات التشغيلية، والمساعد الذكي.">
+<meta name="theme-color" content="#13262F">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2313262F'/%3E%3Cpath d='M8 26V12h4V8h8v4h4v14z' fill='%23B98B66'/%3E%3Cpath d='M8 18h16M8 22h16' stroke='%23E9EFEC' stroke-width='1.5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alexandria:wght@500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="side" id="side" aria-label="التطبيقات">
+    <div class="brand">
+      <svg width="40" height="40" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#1D3540"/><path d="M8 26V12h4V8h8v4h4v14z" fill="#B98B66"/><path d="M8 18h16M8 22h16" stroke="#E9EFEC" stroke-width="1.5"/><path d="M14 26v-4h4v4" fill="#13262F"/></svg>
+      <div><b>الوبران · نجران</b><span>منصة إدارة أعمال المقاول</span></div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-foot">
+      <button type="button" id="settingsBtn">إعدادات البوابة</button>
+      <span id="syncTxt">جارٍ الاتصال بقاعدة البيانات…</span>
+    </div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <button class="menu-btn" id="menuBtn" type="button" aria-label="فتح القائمة" aria-controls="side" aria-expanded="false">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <div class="crumb" id="crumb">الصفحة الرئيسية</div>
+      <div class="date" id="today"></div>
+      <button class="ask-btn" id="askBtn" type="button" aria-controls="drawer" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3z"/><path d="M18 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg>
+        <span>اسأل المساعد</span>
+      </button>
+    </header>
+    <main class="view" id="view" tabindex="-1"></main>
+    <footer class="sign">Project Manager &nbsp;|&nbsp; Eng. Ahmed Zahran</footer>
+  </div>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<section class="drawer" id="drawer" aria-label="المساعد الذكي" aria-hidden="true">
+  <div class="dr-head">
+    <b>مساعد الوبران<small id="aiMode">يقرأ كل منصات الفرع</small></b>
+    <button type="button" id="drClose">إغلاق</button>
+  </div>
+  <div class="chat" id="chat" aria-live="polite"></div>
+  <div class="quick" id="quick"></div>
+  <form class="ask" id="askForm">
+    <textarea id="askInput" placeholder="اسأل عن أي رخصة، عامل، منصة، أو اطلب ملخص اليوم" aria-label="سؤالك"></textarea>
+    <button class="btn pri" type="submit">إرسال</button>
+  </form>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<script src="js/registry.js"></script>
+<script src="js/seed.js"></script>
+<script src="js/core.js"></script>
+<script src="js/views.js"></script>
+<script src="js/assistant.js"></script>
+</body>
+</html>
