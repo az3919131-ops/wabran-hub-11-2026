@@ -35,7 +35,7 @@
         if (/صرف|مغلق|closed/i.test(t)) return "closed";
         return "delivery";
       },
-      dateKey: "delivered", amountKey: "amount", sla: 90, slaText: "مضى على تسليمها أكثر من 90 يوماً",
+      dateKey: "delivered", amountKey: "amount", sla: 365, slaText: "مضى على تسليمها أكثر من 365 يوماً",
       dims: [["owner", "المتابع"], ["plan", "المتبقي"], ["type", "نوع العمل"], ["consultant", "الاستشاري"]],
       score: "notLate",
       title: (r) => r.type || "",
@@ -107,7 +107,7 @@
         if (/تسليم المقاول ولم يتم الاستلام/.test(t)) return "field";
         return "cert";
       },
-      dateKey: "delivered", amountKey: "value", sla: 120, slaText: "مضى على تسليمها للمقاول أكثر من 120 يوماً",
+      dateKey: "delivered", amountKey: "value", sla: 365, slaText: "مضى على تسليمها للمقاول أكثر من 365 يوماً",
       dims: [["type", "نوع العمل"], ["office", "المكتب"], ["owner", "المتابع"]],
       score: "notLate",
       title: (r) => [r.type, r.office].filter(Boolean).join(" · "),
