@@ -240,3 +240,13 @@ td.wrap { min-width: 240px; max-width: 520px; }
 /* شريط التصدير المشترك */
 .exp-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
 .exp-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* شريط فترة التحليل في الرئيسية */
+.perbar { padding: 14px 18px; }
+.perbar-row { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between; }
+.perbar h2 { font-size: 19px; }
+.perbar .chips { margin: 0; }
+
+/* جملة موقف الفرع أسفل الرئيسية */
+.brief-bottom .brief .line { font-size: clamp(19px, 2.2vw, 26px); }
+.hero > .panel { margin: 0; }

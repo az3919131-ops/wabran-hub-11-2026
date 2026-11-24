@@ -30,7 +30,20 @@
     if (i.id === "safety") { const n = HUB.cardRows().filter((c) => c.st === "expired").length; return n ? `<b>${n}</b> عاملاً ببطاقة سلامة منتهية` : `بطاقات سلامة تنتهي خلال أسبوع`; }
     return `${esc(i.short)}: ${esc(i.issue)}`;
   }
+  /* فترة تحليل الصفحة الرئيسية: آخر شهر / آخر 3 أشهر / الكل / فترة مخصصة */
+  const HP_KEY = "homePer";
+  function homePeriod() {
+    const hp = U.ls.get(HP_KEY) || { per: "all", from: "", to: "" };
+    const t = U.today();
+    if (hp.per === 1 || hp.per === 3) { const d = new Date(t.getFullYear(), t.getMonth() - hp.per, t.getDate()); return { hp, period: { from: U.iso(d), to: "" }, label: hp.per === 1 ? "آخر شهر" : "آخر 3 أشهر", from: U.iso(d) }; }
+    if (hp.per === "custom" && (hp.from || hp.to)) return { hp, period: { from: hp.from, to: hp.to }, label: "فترة مخصصة", from: hp.from };
+    return { hp, period: null, label: "كل الفترات" };
+  }
   function home() {
+    const P = homePeriod();
+    HUB.withPeriod(P.period, () => homeInner(HUB.evaluateAll(), P));
+  }
+  function homeInner(E, P) {
     const rank = { bad: 0, warn: 1 };
     const hot = E.items.filter((i) => i.level === "bad" || i.level === "warn").sort((a, b) => rank[a.level] - rank[b.level]);
     const empty = E.items.filter((i) => i.level === "none");
@@ -52,24 +65,26 @@
 
     const li = (x) => `<li class="lvl-${x.level}"><div>${esc(x.text)} <a href="${link(x.app, x.tab)}">اذهب</a></div></li>`;
     const sm = S.summary;
+    const hp = P.hp;
+    const perTxt = P.period ? `${P.label}${P.period.from ? " · من " + U.dmy(P.period.from) : ""}${P.period.to ? " حتى " + U.dmy(P.period.to) : ""}` : "كل الفترات";
     view.innerHTML = `
-      <div class="hero">
-        <div class="brief">
-          <p class="when">موقف الفرع · ${U.longDate()}</p>
-          <p class="line">${line}</p>
-          <p class="sub">${sub}</p>
-          <div class="acts"><button class="btn pri" type="button" data-ask="اكتب ملخص اليوم للإدارة العليا">ملخص اليوم من المساعد</button><a class="btn" href="#gaps">نواقص البيانات (${E.gaps.length})</a></div>
-        </div>
+      <section class="perbar panel">
+        <div class="perbar-row"><h2>تحليل المنصات</h2>
+          <div class="chips" role="group" aria-label="فترة التحليل">${[[1, "آخر شهر"], [3, "آخر 3 أشهر"], ["all", "الكل"], ["custom", "اختيار فترة"]].map(([k, l]) => `<button class="chip" type="button" data-hper="${k}" aria-pressed="${String(hp.per) === String(k)}">${l}</button>`).join("")}</div></div>
+        ${hp.per === "custom" ? `<div class="form" style="margin-top:10px;max-width:520px"><label class="f">من<input type="date" id="hpFrom" value="${esc(hp.from || "")}"></label><label class="f">إلى<input type="date" id="hpTo" value="${esc(hp.to || "")}"></label></div>` : ""}
+        <p class="hint" style="margin:8px 0 0">فترة التحليل: <b>${esc(perTxt)}</b>. تُحسب كل منصة من سجلاتها التي يقع تاريخها الرئيسي ضمن الفترة: انتهاء الرخصة والبطاقة، تاريخ الفاتورة، تاريخ التسليم، ويوم العمل. اضغط أي صف لفتح المنصة.</p>
+      </section>
+      <section class="section" style="margin-top:14px"><div class="ledger">${rows}</div></section>
+      <div class="hero section">
+        <div class="panel"><h3>تحتاج قراراً</h3><p class="hint">مرتبة من الأخطر. كل تنبيه يفتح مكانه.</p>
+          ${E.alerts.length ? `<ul class="list">${E.alerts.map(li).join("")}</ul>` : `<div class="empty">لا تنبيهات اليوم.</div>`}</div>
         <div class="tower" aria-label="تحليل أداء الفرع">
           <h2>تحليل أداء الفرع <span class="num">${E.overall ?? "—"}%</span></h2>
           <p>كل طبقة منصة؛ طولها نسبة سلامتها ولونها حالتها. الطبقة المخططة بلا بيانات.</p>
           <div class="tiers">${tiers}</div><div class="base"></div>
         </div>
       </div>
-      <section class="section"><h2>المنصات</h2><p class="hint">رقم واحد لكل منصة وأهم ما فيها. اضغط أي صف لفتحها.</p><div class="ledger">${rows}</div></section>
-      <section class="section two">
-        <div class="panel"><h3>تحتاج قراراً</h3><p class="hint">مرتبة من الأخطر. كل تنبيه يفتح مكانه.</p>
-          ${E.alerts.length ? `<ul class="list">${E.alerts.map(li).join("")}</ul>` : `<div class="empty">لا تنبيهات اليوم.</div>`}</div>
+      <section class="section">
         <div class="panel" id="gaps"><h3>نواقص البيانات</h3><p class="hint">ما ينقص ليكون التقرير كاملاً وصحيحاً.</p>
           ${E.gaps.length ? `<ul class="list">${E.gaps.map(li).join("")}</ul>` : `<div class="empty">البيانات مكتملة.</div>`}</div>
       </section>
@@ -78,6 +93,14 @@
         ${sm && sm.text ? `<p class="summary-text">${esc(sm.text)}</p><p class="meta">كُتب ${esc(new Date(sm.at).toLocaleString("ar-SA-u-nu-latn"))}</p>` : `<div class="empty"><h3>لم يُكتب ملخص اليوم بعد</h3><p>اطلبه الآن من المساعد، أو انتظر الملخص التلقائي صباح الغد.</p></div>`}
         <div class="acts" style="margin-top:12px"><button class="btn" type="button" id="genSummary">اكتب الملخص الآن واحفظه</button></div>
         <p class="msg" id="sumMsg" role="status"></p>
+      </section>
+      <section class="section panel brief-bottom">
+        <div class="brief">
+          <p class="when">موقف الفرع · ${U.longDate()} · ${esc(perTxt)}</p>
+          <p class="line">${line}</p>
+          <p class="sub">${sub}</p>
+          <div class="acts"><button class="btn pri" type="button" data-ask="اكتب ملخص اليوم للإدارة العليا">ملخص اليوم من المساعد</button><a class="btn" href="#gaps">نواقص البيانات (${E.gaps.length})</a></div>
+        </div>
       </section>`;
   }
 
@@ -420,12 +443,13 @@
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
   document.addEventListener("click", async (ev) => {
-    const t = ev.target.closest("[data-dexp],[data-dlexp],[data-lexp],[data-dfreset],[data-lfreset],[data-licper],#syncNow,[data-dsf],[data-tpl],[data-dscsv],[data-dsclear],[data-dsparse],#dsCommit,#dsCancel,[data-go],[data-licf],[data-csv],[data-theme],#licCommit,#licCancel,#cardCommit,#cardCancel,#genSummary,#settingsBtn,#menuBtn");
+    const t = ev.target.closest("[data-hper],[data-dexp],[data-dlexp],[data-lexp],[data-dfreset],[data-lfreset],[data-licper],#syncNow,[data-dsf],[data-tpl],[data-dscsv],[data-dsclear],[data-dsparse],#dsCommit,#dsCancel,[data-go],[data-licf],[data-csv],[data-theme],#licCommit,#licCancel,#cardCommit,#cardCancel,#genSummary,#settingsBtn,#menuBtn");
     if (!t) return;
     if (t.dataset.go) { location.hash = t.dataset.go; return; }
     if (t.id === "menuBtn") { const o = $("#side").classList.toggle("open"); t.setAttribute("aria-expanded", String(o)); return; }
     if (t.id === "settingsBtn") { location.hash = "#/settings"; return; }
     if (t.dataset.licf !== undefined) { ui.licF = t.dataset.licf; render(); return; }
+    if (t.dataset.hper) { const hp = U.ls.get(HP_KEY) || {}; const k = t.dataset.hper; hp.per = k === "1" ? 1 : k === "3" ? 3 : k; U.ls.set(HP_KEY, hp); render(); return; }
     if (t.dataset.dexp || t.dataset.dlexp) {
       const p = reg(parse().app), A = DS.analyze(p.id, S.ds[p.id]);
       if (t.dataset.dexp) dsExport(t.dataset.dexp, p, A, dsFiltered(A), dsDesc(A));
@@ -503,6 +527,7 @@
   document.addEventListener("change", (ev) => {
     const tg = ev.target;
     if (tg.dataset && tg.dataset.dfdim) { ui.df.dims[tg.dataset.dfdim] = tg.value; render(); return; }
+    if (tg.id === "hpFrom" || tg.id === "hpTo") { const hp = U.ls.get(HP_KEY) || { per: "custom" }; hp.per = "custom"; hp[tg.id === "hpFrom" ? "from" : "to"] = tg.value; U.ls.set(HP_KEY, hp); render(); return; }
     const map = { dfState: ["df", "state"], dfFrom: ["df", "from"], dfTo: ["df", "to"], lfEng: ["lf", "eng"], lfState: ["lf", "state"], lfFrom: ["lf", "from"], lfTo: ["lf", "to"] };
     if (map[tg.id]) { ui[map[tg.id][0]][map[tg.id][1]] = tg.value; render(); return; }
     const f = ev.target.files && ev.target.files[0]; if (!f) return;

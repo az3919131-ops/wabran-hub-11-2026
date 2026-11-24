@@ -207,7 +207,22 @@
     return out;
   }
 
-  function evaluateAll() {
+  // تقييم الفرع خلال فترة: كل منصة تُقصر على سجلاتها التي يقع تاريخها الرئيسي ضمن الفترة
+  // (الرخص: تاريخ الانتهاء، البطاقات: تاريخ الانتهاء، المنصات الخمس: تاريخ كل منصة). period = { from, to } أو null للكل.
+  function withPeriod(period, fn) {
+    if (!period || (!period.from && !period.to)) return fn();
+    const inR = (d) => !!d && (!period.from || d >= period.from) && (!period.to || d <= period.to);
+    const keep = { l: S.licenses, c: S.cards, d: S.ds };
+    S.licenses = { ...keep.l, rows: (keep.l.rows || []).filter((r) => inR(r.end)) };
+    S.cards = { ...keep.c, rows: (keep.c.rows || []).filter((r) => inR(r.exp)) };
+    S.ds = {};
+    Object.keys(keep.d).forEach((id) => { const sc = window.DS && DS.SCHEMAS[id]; S.ds[id] = { ...keep.d[id], rows: keep.d[id].rows.filter((r) => sc && inR(r[sc.dateKey])) }; });
+    try { return fn(); } finally { S.licenses = keep.l; S.cards = keep.c; S.ds = keep.d; }
+  }
+  function evaluateAll(period) {
+    return withPeriod(period, evaluateNow);
+  }
+  function evaluateNow() {
     const items = REGISTRY.map(evaluate);
     const scored = items.filter((i) => i.score != null);
     const overall = scored.length ? Math.round(scored.reduce((a, b) => a + b.score, 0) / scored.length) : null;
@@ -251,5 +266,5 @@
     } catch (e) {}
   }
 
-  window.HUB = { U, Store, S, loadAll, classify, licRows, cardRows, CARD_ST, LIC_CLS, latest, evaluate, evaluateAll, buildContext, pushContext };
+  window.HUB = { withPeriod, U, Store, S, loadAll, classify, licRows, cardRows, CARD_ST, LIC_CLS, latest, evaluate, evaluateAll, buildContext, pushContext };
 })();
