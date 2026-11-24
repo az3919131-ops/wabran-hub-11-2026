@@ -1,15 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
-import { UploadCloud, FileSpreadsheet, CheckCircle2, AlertTriangle, XCircle, Info, Loader2, ShieldAlert, Users, Save } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { UploadCloud, FileSpreadsheet, CheckCircle2, AlertTriangle, XCircle, Info, Loader2, ShieldAlert, Save, KeyRound } from 'lucide-react';
 import { parseWorkbook, sha256 } from '../lib/parse.js';
 import { projectRows, projectKpis, collectionModel, validateReport, totalsCheck, fmtM, fmtNum, fmtPct, fmtDate } from '../lib/analytics.js';
-import { supabase } from '../lib/supabase.js';
+import { api } from '../lib/api.js';
 import { Panel, Badge, Kpi, DataTable } from '../components/ui.jsx';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const LV = { error: { icon: XCircle, cls: 'bg-red-50 text-red-700' }, warn: { icon: AlertTriangle, cls: 'bg-orange-50 text-orange-800' }, info: { icon: Info, cls: 'bg-slate-50 text-slate-600' } };
 
 export default function Import({ ctx }) {
-  const { role, local, list, onImported } = ctx;
+  const { role, local, list, onImported, login } = ctx;
   const [file, setFile] = useState(null);
   const [date, setDate] = useState(today());
   const [res, setRes] = useState(null); // {report, hash, errors, warnings}
@@ -19,14 +19,7 @@ export default function Import({ ctx }) {
   const [drag, setDrag] = useState(false);
   const input = useRef();
 
-  if (role !== 'admin')
-    return (
-      <div className="card mx-auto max-w-md p-6 text-center">
-        <ShieldAlert size={36} className="mx-auto mb-2 text-orange-500" />
-        <h2 className="font-bold text-navy-900">هذه الصفحة للمدير فقط</h2>
-        <p className="mt-1 text-sm text-slate-600">صلاحيتك الحالية: عرض وفلترة فقط.</p>
-      </div>
-    );
+  if (role !== 'admin') return <PinGate login={login} />;
 
   const handle = async (f) => {
     if (!f) return;
@@ -58,9 +51,7 @@ export default function Import({ ctx }) {
       let saved;
       if (local) saved = { ...row, id: crypto.randomUUID(), uploaded_at: new Date().toISOString() };
       else {
-        const { data, error } = await supabase.from('weekly_reports').insert(row).select().single();
-        if (error) throw error;
-        saved = data;
+        saved = await api.save(row);
       }
       setMsg({ tone: 'good', text: 'تم اعتماد التقرير وتحديث جميع المؤشرات.' });
       setRes(null); setFile(null);
@@ -145,31 +136,30 @@ export default function Import({ ctx }) {
         </>
       )}
 
-      {!local && <UsersAdmin />}
     </div>
   );
 }
 
-function UsersAdmin() {
-  const [users, setUsers] = useState([]);
-  const load = () => supabase.from('profiles').select('*').order('created_at').then(({ data }) => setUsers(data || []));
-  useEffect(() => { load(); }, []);
-  const setRole = async (id, role) => {
-    const { error } = await supabase.from('profiles').update({ role }).eq('id', id);
-    if (error) alert(error.message); else load();
+function PinGate({ login }) {
+  const [pin, setPin] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true); setErr('');
+    try { await login(pin); } catch (x) { setErr(x.message); } finally { setBusy(false); }
   };
   return (
-    <Panel title="المستخدمون والصلاحيات" icon={Users}>
-      <p className="mb-3 text-xs text-slate-500">المستخدم الجديد يسجل من صفحة الدخول ويبقى "بانتظار التفعيل" حتى تمنحه صلاحية. Admin: استيراد وتحديث وعرض · Viewer: عرض وفلترة فقط.</p>
-      <DataTable maxH="max-h-80" rows={users} rowKey={(u) => u.id} columns={[
-        { key: 'email', label: 'البريد', className: 'font-semibold', render: (u) => <span dir="ltr">{u.email}</span> },
-        { key: 'created_at', label: 'تاريخ التسجيل', render: (u) => fmtDate(u.created_at) },
-        { key: 'role', label: 'الصلاحية', render: (u) => (
-          <select className="input w-auto py-1" value={u.role} onChange={(e) => setRole(u.id, e.target.value)}>
-            <option value="pending">بانتظار التفعيل</option><option value="viewer">Viewer</option><option value="admin">Admin</option>
-          </select>
-        ) },
-      ]} />
-    </Panel>
+    <form onSubmit={submit} className="card mx-auto max-w-sm p-6 text-center">
+      <ShieldAlert size={36} className="mx-auto mb-2 text-petrol-600" />
+      <h2 className="font-bold text-navy-900">الاستيراد والتحديث للمدير فقط</h2>
+      <p className="mb-4 mt-1 text-sm text-slate-600">أدخل رمز المدير للمتابعة. العرض والفلترة متاحان للجميع.</p>
+      <label className="relative block">
+        <KeyRound size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input type="password" className="input pr-9 text-center" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="رمز المدير" required dir="ltr" />
+      </label>
+      {err && <div className="mt-3 rounded-xl bg-red-50 p-2 text-xs text-red-700">{err}</div>}
+      <button className="btn-primary mt-4 w-full justify-center" disabled={busy}>{busy && <Loader2 size={16} className="animate-spin" />}دخول المدير</button>
+    </form>
   );
 }

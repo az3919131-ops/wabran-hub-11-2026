@@ -1,29 +1,29 @@
 # منصة متابعة مشاريع الوبران – فرع نجران
-**NAJRAN PROJECTS DASHBOARD** — React + Vite + Tailwind + SheetJS + Recharts + Supabase، منشورة على Netlify.
+**NAJRAN PROJECTS DASHBOARD** — React + Vite + Tailwind + SheetJS + Recharts + Netlify Blobs، منشورة على Netlify.
 
 ## الصفحات
 1. **المشاريع الأكبر من 100 ألف** (الرئيسية): ملخص تنفيذي تلقائي، مؤشرات، رسوم تفاعلية تفلتر عند الضغط، بطاقات/جدول، تفاصيل كل مشروع.
 2. **خطة التحصيل**: المراحل بمسمياتها الأصلية، مطابقة إجماليات Excel، أكبر الفرص، GIS، جدول كامل.
 3. **المقارنة والأرشيف الأسبوعي**: مقارنة أي تقريرين برقم أمر العمل + الأرشيف.
-4. **استيراد وتحديث البيانات** (Admin): رفع Excel، معاينة وتحذيرات، اعتماد، وإدارة المستخدمين.
+4. **استيراد وتحديث البيانات** (Admin): رفع Excel، معاينة وتحذيرات، اعتماد.
 
-## الإعداد (6 خطوات)
-1. أنشئ مشروعاً على [supabase.com](https://supabase.com).
-2. افتح **SQL Editor** والصق محتوى `supabase.sql` كاملاً ثم **Run**.
-3. **حساب Admin**: افتح الموقع واضغط «إنشاء حساب» — أول حساب يُنشأ يصبح Admin تلقائياً. (لإلغاء تأكيد البريد: Authentication › Providers › Email › Confirm email). المستخدمون اللاحقون يظهرون في صفحة الاستيراد لتمنحهم Viewer أو Admin.
-4. من Supabase › Project Settings › API انسخ `Project URL` و`anon public key` وضعهما في متغيرات البيئة (انظر `.env.example`):
-   `VITE_SUPABASE_URL` و `VITE_SUPABASE_ANON_KEY` (لا تستخدم service_role أبداً).
-5. ارفع المشروع إلى GitHub واربطه بـ Netlify — Base directory: `platforms/projects-dashboard`، Build: `npm run build`، Publish: `dist` (موجودة في `netlify.toml`)، وأضف المتغيرين في Site settings › Environment variables.
-6. افتح الموقع وسجّل الدخول ثم استورد ملف Excel من صفحة «استيراد وتحديث البيانات».
+## التخزين والصلاحيات
+- البيانات تُحفظ في قاعدة Netlify الداخلية (**Netlify Blobs**) عبر الدالة `netlify/functions/reports.mjs` — لا حاجة لأي خدمة خارجية.
+- **Viewer:** كل من لديه الرابط يعرض ويفلتر ويصدّر.
+- **Admin:** الاستيراد والحذف يتطلبان رمز المدير `ADMIN_PIN` المضبوط في Netlify › Site settings › Environment variables.
+- كل تقرير يُحفظ كاملاً (JSON) مع فهرس للأرشيف؛ أحدث تقرير هو المعروض افتراضياً.
 
-التحديث الأسبوعي يتم من داخل الموقع ولا يحتاج إعادة نشر.
+## النشر
+- Netlify: Base directory `platforms/projects-dashboard`، Build `npm run build`، Publish `dist` (في `netlify.toml`).
+- أضف `ADMIN_PIN` في متغيرات البيئة، ثم افتح الموقع › استيراد وتحديث البيانات › أدخل الرمز › ارفع ملف Excel.
+- التحديث الأسبوعي من داخل الموقع بدون إعادة نشر.
 
 ## تشغيل محلي
 ```
 npm install
-npm run dev
+npm run dev        # معاينة بدون حفظ
+npx netlify dev    # مع الحفظ والدوال
 ```
-بدون ملف `.env` يعمل الموقع في **وضع معاينة محلية** (استيراد وعرض فقط بدون حفظ).
 
 ## قواعد الحساب
 - نسبة التنفيذ المالية الإجمالية = إجمالي التكلفة المنفذة ÷ إجمالي التقديرية (وليست متوسط النسب)، والنسب فوق 100% تُحفظ وتُميَّز.

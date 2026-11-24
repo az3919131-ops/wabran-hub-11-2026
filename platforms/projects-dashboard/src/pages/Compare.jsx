@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { GitCompareArrows, Archive, Download, Trash2, Loader2, TrendingUp, TrendingDown, Minus, Layers, Info } from 'lucide-react';
 import { compareReports, countBy, fmtNum, fmtPct, fmtSAR, fmtDate, cellText, isNum } from '../lib/analytics.js';
 import { exportSheets } from '../lib/parse.js';
-import { supabase } from '../lib/supabase.js';
+import { api } from '../lib/api.js';
 import { Panel, Badge, DataTable, NoReport, Empty } from '../components/ui.jsx';
 
 const BADGE_TONE = { 'جديد': 'blue', 'تقدم': 'green', 'تغير الموقف': 'orange', 'تحديث بيانات': 'purple', 'بدون تغيير': 'slate', 'غير موجود بالتقرير الحالي': 'red' };
@@ -43,8 +43,7 @@ export default function Compare({ ctx }) {
   const del = async (r) => {
     if (!confirm(`حذف تقرير ${fmtDate(r.report_date)} (${r.file_name}) نهائياً؟`)) return;
     if (!local) {
-      const { error } = await supabase.from('weekly_reports').delete().eq('id', r.id);
-      if (error) return alert('تعذر الحذف: ' + error.message);
+      try { await api.remove(r.id); } catch (e) { return alert('تعذر الحذف: ' + e.message); }
     }
     onDeleted(r.id);
   };
