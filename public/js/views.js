@@ -35,8 +35,13 @@
   function homePeriod() {
     const hp = U.ls.get(HP_KEY) || { per: "all", from: "", to: "" };
     const t = U.today();
-    if (hp.per === 1 || hp.per === 3) { const d = new Date(t.getFullYear(), t.getMonth() - hp.per, t.getDate()); return { hp, period: { from: U.iso(d), to: "" }, label: hp.per === 1 ? "آخر شهر" : "آخر 3 أشهر", from: U.iso(d) }; }
-    if (hp.per === "custom" && (hp.from || hp.to)) return { hp, period: { from: hp.from, to: hp.to }, label: "فترة مخصصة", from: hp.from };
+    if (hp.per === 1 || hp.per === 3) { const d = new Date(t.getFullYear(), t.getMonth() - hp.per, t.getDate()); return { hp, period: { from: U.iso(d), to: "", months: hp.per }, label: hp.per === 1 ? "آخر شهر" : "آخر 3 أشهر", from: U.iso(d) }; }
+    if (hp.per === "custom" && (hp.from || hp.to)) {
+      // عدد أشهر الفترة المخصصة (لحساب المتوسط الشهري)، بحد أدنى شهر واحد
+      const f = hp.from ? U.parseISO(hp.from) : null, e = hp.to ? U.parseISO(hp.to) : t;
+      const months = f ? Math.max(1, Math.round(((e - f) / 864e5 + 1) / 30.44)) : null;
+      return { hp, period: { from: hp.from, to: hp.to, months }, label: "فترة مخصصة", from: hp.from };
+    }
     return { hp, period: null, label: "كل الفترات" };
   }
   function home() {

@@ -211,13 +211,14 @@
   // (الرخص: تاريخ الانتهاء، البطاقات: تاريخ الانتهاء، المنصات الخمس: تاريخ كل منصة). period = { from, to } أو null للكل.
   function withPeriod(period, fn) {
     if (!period || (!period.from && !period.to)) return fn();
+    S.period = period;
     const inR = (d) => !!d && (!period.from || d >= period.from) && (!period.to || d <= period.to);
     const keep = { l: S.licenses, c: S.cards, d: S.ds };
     S.licenses = { ...keep.l, rows: (keep.l.rows || []).filter((r) => inR(r.end)) };
     S.cards = { ...keep.c, rows: (keep.c.rows || []).filter((r) => inR(r.exp)) };
     S.ds = {};
     Object.keys(keep.d).forEach((id) => { const sc = window.DS && DS.SCHEMAS[id]; S.ds[id] = { ...keep.d[id], rows: keep.d[id].rows.filter((r) => sc && inR(r[sc.dateKey])) }; });
-    try { return fn(); } finally { S.licenses = keep.l; S.cards = keep.c; S.ds = keep.d; }
+    try { return fn(); } finally { S.licenses = keep.l; S.cards = keep.c; S.ds = keep.d; S.period = null; }
   }
   function evaluateAll(period) {
     return withPeriod(period, evaluateNow);

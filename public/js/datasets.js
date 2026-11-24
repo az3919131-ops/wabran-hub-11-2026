@@ -264,7 +264,22 @@
       out.issue = `نسبة التحصيل ${A.score ?? "—"}% من ${U.fmt(Math.round(A.total))} ريال، و${A.W(A.open)} فاتورة لم تُحصّل` + (A.late.length ? ` منها ${A.W(A.late)} أقدم من ${s.sla} يوماً` : "");
     } else if (p.id === "schedule") {
       const m = A.months[A.months.length - 1], pm = A.months[A.months.length - 2];
-      out.fig = U.fmt(Math.round(m.amt)); out.figLabel = "ريال منفذ هذا الشهر";
+      const per = HUB.S.period;
+      if (per && per.months) {
+        // الفترة مختارة: قيمة أعمال الشهر، أو المتوسط الشهري لأشهر الفترة
+        const v = A.total / per.months;
+        out.fig = U.fmt(Math.round(v));
+        out.figLabel = per.months === 1 ? "ريال قيمة أعمال آخر شهر" : `ريال متوسط شهري (${per.months} أشهر)`;
+      } else {
+        // كل الفترات: متوسط آخر 3 أشهر فيها أعمال مسجلة
+        const byM = new Map();
+        A.live.forEach((r) => { const k = String(r.date || "").slice(0, 7); if (k) byM.set(k, (byM.get(k) || 0) + (Number(r.value) || 0)); });
+        const last3 = [...byM].filter(([, v]) => v > 0).sort((x, y) => (x[0] < y[0] ? 1 : -1)).slice(0, 3);
+        const avg = last3.length ? last3.reduce((t, [, v]) => t + v, 0) / last3.length : 0;
+        const nm = (k) => U.month(+k.slice(5, 7) - 1);
+        out.fig = U.fmt(Math.round(avg));
+        out.figLabel = last3.length ? `ريال متوسط شهري لآخر ${last3.length === 3 ? "3 أشهر" : last3.length + " شهر"} (${nm(last3[last3.length - 1][0])}–${nm(last3[0][0])})` : "ريال";
+      }
       out.issue = `${U.days(A.days30)} عمل مسجلة في آخر 30 يوماً، والشهر السابق ${U.fmt(Math.round(pm.amt))} ريال`;
     } else if (p.id === "dispatch") {
       out.fig = String(A.todays.length); out.figLabel = "مهمة اليوم";
