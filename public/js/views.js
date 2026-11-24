@@ -9,7 +9,7 @@
   const reg = (id) => REGISTRY.find((p) => p.id === id);
   const link = (app, tab) => `#/app/${app}${tab ? "/" + tab : ""}`;
   let E = null;
-  const ui = { licF: "", licQ: "", cardQ: "", pendLic: null, pendCards: null, dsF: "", dsQ: "", pendDs: null };
+  const ui = { licPer: 0, licF: "", licQ: "", cardQ: "", pendLic: null, pendCards: null, dsF: "", dsQ: "", pendDs: null };
 
   /* ---------- القائمة الجانبية ---------- */
   function renderNav(route) {
@@ -196,10 +196,15 @@
   }
 
   /* ---------- الرخص ---------- */
-  const LCOL = { N7: "#9B6B3F", N5: "#7A5BA8", N4: "#D99A0B", N6: "#3F7CB5", N2: "#C2312A", N3: "#D9702B", N1: "#17715F", N9: "#6B747A" };
+  const LCOL = { N8: "#4F7A8C", N7: "#9B6B3F", N5: "#7A5BA8", N4: "#D99A0B", N6: "#3F7CB5", N2: "#C2312A", N3: "#D9702B", N1: "#17715F", N9: "#6B747A" };
   function licensesApp(p, tab) {
     tab = tab || "overview";
-    const rows = HUB.licRows();
+    const allRows = HUB.licRows();
+    // فترة التحليل: الرخص التي ينتهي تاريخها ضمن آخر N أشهر أو بعده (0 = الكل)
+    const ps = ui.licPer ? new Date(U.today().getFullYear(), U.today().getMonth() - ui.licPer, U.today().getDate()) : null;
+    const rows = ps ? allRows.filter((r) => U.parseISO(r.end) >= ps) : allRows;
+    const hidOld = ps ? allRows.filter((r) => !r.closed && U.parseISO(r.end) < ps) : [];
+    const perBar = `<div class="chips" style="align-items:center"><b style="margin-inline-end:6px">فترة التحليل:</b>${[[1, "آخر شهر"], [2, "آخر شهرين"], [3, "آخر 3 أشهر"], [0, "الكل"]].map(([n, l]) => `<button class="chip" type="button" data-licper="${n}" aria-pressed="${ui.licPer === n}">${l}</button>`).join("")}<span class="hint" style="margin:0 8px">${rows.length} من ${allRows.length} رخصة${ps ? " · من " + U.dmy(U.iso(ps)) : ""}</span></div>` + (hidOld.length ? `<div class="note">${hidOld.length} رخصة مفتوحة انتهت قبل بداية الفترة ولا تظهر في هذه الفترة: ${esc(hidOld.map((r) => r.loc + " (" + r.over + " يوماً)").join("، "))}</div>` : "");
     const open = rows.filter((r) => !r.closed);
     const over = open.filter((r) => r.over > 0).sort((a, b) => b.over - a.over);
     const age = U.daysFrom(S.licenses.asof);
@@ -210,7 +215,7 @@
       const cnt = {}; rows.forEach((r) => (cnt[r.cls] = (cnt[r.cls] || 0) + 1));
       const order = Object.keys(cnt).sort((a, b) => ((HUB.LIC_CLS[a] || {}).order || 99) - ((HUB.LIC_CLS[b] || {}).order || 99));
       const mx = Math.max(1, ...over.map((r) => r.over));
-      body = stale + kpis([["إجمالي الرخص", rows.length], ["مغلقة بإخلاء طرف", rows.length - open.length, "ok"], ["مفتوحة", open.length, "warn"], ["متجاوزة المدة", over.length, "bad"], ["أقدم تجاوز (يوم)", over.length ? over[0].over : 0, "bad"]]) +
+      body = stale + perBar + kpis([["إجمالي الرخص", rows.length], ["مغلقة بإخلاء طرف", rows.length - open.length, "ok"], ["مفتوحة", open.length, "warn"], ["متجاوزة المدة", over.length, "bad"], ["أقدم تجاوز (يوم)", over.length ? over[0].over : 0, "bad"]]) +
         `<div class="section two"><div class="panel"><h3>توزيع الرخص حسب الموقف</h3><p class="hint">الأعلى أبعدها عن الإغلاق.</p><div class="bars">${order.map((c) => `<div class="bar" style="--c:${LCOL[c]}"><span>${esc((HUB.LIC_CLS[c] || { short: "غير مصنفة" }).short || HUB.LIC_CLS[c].name)}</span><span class="tr"><span class="fl" style="width:${(cnt[c] / rows.length) * 100}%"></span></span><span class="v num">${cnt[c]}</span></div>`).join("")}</div></div>
         <div class="panel"><h3>ترتيب التجاوز</h3><p class="hint">أيام منذ انتهاء المدة للرخص المفتوحة.</p><div class="bars">${over.map((r) => `<div class="bar" style="--c:${LCOL[r.cls]}"><span>${esc(r.loc)} <span class="ltr num" style="color:var(--muted)">${r.id.slice(-5)}</span></span><span class="tr"><span class="fl" style="width:${(r.over / mx) * 100}%"></span></span><span class="v num">${r.over}</span></div>`).join("") || '<p class="hint">لا رخص متجاوزة.</p>'}</div></div></div>`;
     } else if (tab === "list") {
@@ -218,7 +223,7 @@
       const q = ui.licQ.trim();
       const list = rows.filter((r) => (!ui.licF || r.cls === ui.licF) && (!q || (r.id + r.wo + r.loc + r.eng + r.st).includes(q)))
         .sort((a, b) => ((HUB.LIC_CLS[a.cls] || {}).order || 99) - ((HUB.LIC_CLS[b.cls] || {}).order || 99) || (b.over || 0) - (a.over || 0));
-      body = stale + `<div class="chips"><button class="chip" data-licf="" aria-pressed="${!ui.licF}" type="button">الكل ${rows.length}</button>${Object.keys(cnt).map((c) => `<button class="chip" style="--c:${LCOL[c]}" data-licf="${c}" aria-pressed="${ui.licF === c}" type="button"><i></i>${esc((HUB.LIC_CLS[c] || {}).short || "غير مصنفة")} ${cnt[c]}</button>`).join("")}</div>
+      body = stale + perBar + `<div class="chips"><button class="chip" data-licf="" aria-pressed="${!ui.licF}" type="button">الكل ${rows.length}</button>${Object.keys(cnt).map((c) => `<button class="chip" style="--c:${LCOL[c]}" data-licf="${c}" aria-pressed="${ui.licF === c}" type="button"><i></i>${esc((HUB.LIC_CLS[c] || {}).short || "غير مصنفة")} ${cnt[c]}</button>`).join("")}</div>
         <label class="f" style="max-width:340px;margin-bottom:12px">بحث<input type="search" id="licQ" value="${esc(ui.licQ)}" placeholder="رقم الرخصة، أمر العمل، الموقع، المهندس"></label>
         <div class="tbl"><table><thead><tr><th>الرخصة</th><th>الموقع</th><th>المهندس</th><th>الانتهاء</th><th>الحالة</th><th>سبب التأخر</th><th>الإجراء المطلوب</th></tr></thead><tbody>
         ${list.map((r) => `<tr><td class="ltr num">${esc(r.id)}<br><small style="color:var(--muted)">أمر ${esc(r.wo)}</small></td><td>${esc(r.loc)}</td><td>${esc(r.eng)}</td><td class="num">${U.dmy(r.end)}</td>
@@ -227,7 +232,7 @@
     } else if (tab === "eng") {
       const engs = [...new Set(rows.map((r) => r.eng || "غير محدد"))];
       const data = engs.map((e) => { const a = rows.filter((r) => (r.eng || "غير محدد") === e), o = a.filter((r) => !r.closed), ov = o.filter((r) => r.over > 0); return { e, a: a.length, o: o.length, ov: ov.length, max: ov.length ? Math.max(...ov.map((r) => r.over)) : 0 }; }).sort((x, y) => y.ov - x.ov || y.o - x.o);
-      body = stale + `<div class="tbl"><table><thead><tr><th>المهندس</th><th>إجمالي الرخص</th><th>مغلقة</th><th>مفتوحة</th><th>متجاوزة</th><th>أقدم تجاوز (يوم)</th><th>نسبة الإغلاق</th></tr></thead><tbody>
+      body = stale + perBar + `<div class="tbl"><table><thead><tr><th>المهندس</th><th>إجمالي الرخص</th><th>مغلقة</th><th>مفتوحة</th><th>متجاوزة</th><th>أقدم تجاوز (يوم)</th><th>نسبة الإغلاق</th></tr></thead><tbody>
         ${data.map((d) => `<tr><td>${esc(d.e)}</td><td class="num">${d.a}</td><td class="num">${d.a - d.o}</td><td class="num">${d.o}</td><td class="num">${d.ov ? `<span class="pill p-bad">${d.ov}</span>` : 0}</td><td class="num">${d.max || "—"}</td><td class="num">${Math.round(((d.a - d.o) / d.a) * 100)}%</td></tr>`).join("")}</tbody></table></div>`;
     } else if (tab === "data") {
       body = `<div class="panel"><h3>رفع ملف الرخص الأسبوعي</h3><p class="hint">ملف Excel أو CSV يحتوي أعمدة: رقم الرخصة/التصريح، أمر العمل، الموقع، تاريخ الانتهاء، موقف الرخصة، المهندس. تُكتشف الأعمدة من العناوين، ويُعاد التصنيف وأسباب التأخر تلقائياً.</p>
@@ -372,12 +377,13 @@
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
   document.addEventListener("click", async (ev) => {
-    const t = ev.target.closest("#syncNow,[data-dsf],[data-tpl],[data-dscsv],[data-dsclear],[data-dsparse],#dsCommit,#dsCancel,[data-go],[data-licf],[data-csv],[data-theme],#licCommit,#licCancel,#cardCommit,#cardCancel,#genSummary,#settingsBtn,#menuBtn");
+    const t = ev.target.closest("[data-licper],#syncNow,[data-dsf],[data-tpl],[data-dscsv],[data-dsclear],[data-dsparse],#dsCommit,#dsCancel,[data-go],[data-licf],[data-csv],[data-theme],#licCommit,#licCancel,#cardCommit,#cardCancel,#genSummary,#settingsBtn,#menuBtn");
     if (!t) return;
     if (t.dataset.go) { location.hash = t.dataset.go; return; }
     if (t.id === "menuBtn") { const o = $("#side").classList.toggle("open"); t.setAttribute("aria-expanded", String(o)); return; }
     if (t.id === "settingsBtn") { location.hash = "#/settings"; return; }
     if (t.dataset.licf !== undefined) { ui.licF = t.dataset.licf; render(); return; }
+    if (t.dataset.licper !== undefined) { ui.licPer = +t.dataset.licper; ui.licF = ""; render(); return; }
     if (t.id === "syncNow") {
       const m = $("#syncMsg"); t.disabled = true; m.className = "msg"; m.textContent = "جارٍ السحب من المنصات الأصلية…";
       try {

@@ -77,12 +77,14 @@
 
   /* ---------- الرخص ---------- */
   const LIC_CLS = SEED.licenses.cls;
+  LIC_CLS.N8 = { name: "تحت التنفيذ — ضمن مدة الرخصة", short: "تحت التنفيذ (سارية)", order: 8 };
+  LIC_CLS.N5.name = "باقي رفع مراحل / صور المراحل / شهادة إتمام";
   function classify(t) {
     t = String(t || "");
     if (t.includes("تم اصدار") && t.includes("اخلاء")) return "N1";
     if (t.includes("تعديل ملاحظات")) return "N2";
     if (t.includes("انتظار سداد")) return "N3";
-    if (t.includes("منتهي")) return "N5";
+    if (t.includes("منتهي") || t.includes("صور المراحل") || t.includes("باقي رفع")) return "N5";
     if (t.includes("رفع المراحل")) return "N4";
     if (t.includes("اختبار")) return "N6";
     if (t.includes("تحت التنفيذ") || t.includes("جاري")) return "N7";
@@ -96,13 +98,22 @@
     N5: "رفع المراحل والشهادة اليوم وتسجيل تاريخ الرفع.",
     N6: "استلام تقرير المختبر ورفعه للاستشاري وتحديث الملاحظة.",
     N7: "زيارة الموقع: إن اكتمل يُرفع للإغلاق وإلا يُطلب تمديد رسمي.",
+    N8: "متابعة التنفيذ وتجهيز رفع المراحل قبل تاريخ الانتهاء، وطلب تمديد مبكراً إن لزم.",
     N9: "تصنيف الحالة يدوياً ثم تحديد الإجراء.",
   };
+  // سبب التأخر حين لا يحمل الملف سبباً مكتوباً
+  function licWhy(r, o) {
+    const e = U.dmy(r.end), st = r.st, late = `الرخصة منتهية ${e} (متأخرة ${U.days(o)}).`;
+    if (r.cls !== "N1" && o <= 0) return `الثابت: "${st}". تنتهي الرخصة ${e} (متبقٍ ${U.days(-o)}) — تُتابع قبل الانتهاء.`;
+    return ({ N1: `لا تأخر قائم: "${st}".`, N2: `الثابت: "${st}". ${late} المرجّح: التعديل المطلوب لم يُنفذ أو لم يُعد رفعه.`, N3: `الثابت: الإخلاء ينتظر السداد. ${late}`, N4: `الثابت: "${st}". ${late} المرجّح: ملاحظات على المراحل أو انتظار معاينة.`, N5: `الثابت: "${st}"؛ بقي إجراء إداري. ${late}`, N6: `الثابت: "${st}" ولم تُسجل نتيجة. ${late} المرجّح: تقرير المختبر لم يصل.`, N7: `الثابت: "تحت التنفيذ" بعد انتهاء المدة ولا تمديد مسجل. ${late}`, N9: `حالة غير مصنفة: "${st}". ${late}` })[r.cls] || "";
+  }
   function licRows() {
     return (S.licenses.rows || []).map((r) => {
-      const cls = r.cls || classify(r.st);
       const over = U.daysFrom(r.end);
-      return { ...r, cls, closed: cls === "N1", over, act: LIC_ACT[cls] || LIC_ACT.N9, clsName: (LIC_CLS[cls] || { name: "غير مصنفة" }).name };
+      let cls = classify(r.st);
+      if (cls === "N7" && over <= 0) cls = "N8";
+      const why = r.why && r.cls === cls ? r.why : licWhy({ ...r, cls }, over);
+      return { ...r, cls, why, closed: cls === "N1", over, act: LIC_ACT[cls] || LIC_ACT.N9, clsName: (LIC_CLS[cls] || { name: "غير مصنفة" }).name };
     });
   }
 
