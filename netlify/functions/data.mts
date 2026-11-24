@@ -2,12 +2,12 @@ import { getStore } from "@netlify/blobs";
 import type { Config } from "@netlify/functions";
 
 // القاعدة المشتركة للبوابة: مفاتيح محددة فقط تُقرأ وتُكتب.
-const KEYS = new Set(["snapshots", "licenses", "cards", "summary", "context", "log", "ds_projects", "ds_schedule", "ds_invoices", "ds_assign", "ds_dispatch", "sync"]);
+const KEYS = new Set(["snapshots", "licenses", "cards", "summary", "context", "log", "ds_projects", "ds_schedule", "ds_invoices", "ds_assign", "ds_dispatch", "sync", "dispatch"]);
 const MAX_BYTES = 4_000_000;
 
 // المنصات المستقلة المسموح لها بالقراءة والكتابة في القاعدة المشتركة من نطاقها
-const ORIGINS = new Set(["https://najran-safety-cards.netlify.app"]);
-const KEY_BY_ORIGIN: Record<string, string[]> = { "https://najran-safety-cards.netlify.app": ["cards"] };
+const ORIGINS = new Set(["https://najran-safety-cards.netlify.app", "https://najran-dispatch-board.netlify.app"]);
+const KEY_BY_ORIGIN: Record<string, string[]> = { "https://najran-safety-cards.netlify.app": ["cards"], "https://najran-dispatch-board.netlify.app": ["dispatch"] };
 
 export default async (req: Request) => {
   const origin = req.headers.get("origin") || "";
@@ -34,7 +34,8 @@ async function handle(req: Request, origin: string) {
 
   if (req.method === "PUT") {
     const pin = Netlify.env.get("HUB_ADMIN_PIN");
-    if (pin && req.headers.get("x-hub-pin") !== pin && key !== "context") {
+    // مزامنة لوحة التوزيع تلقائية من متصفحات مستخدميها فلا تحمل رمزاً
+    if (pin && req.headers.get("x-hub-pin") !== pin && key !== "context" && key !== "dispatch") {
       return Response.json({ error: "رمز الإدارة غير صحيح. أدخل الرمز من إعدادات البوابة." }, { status: 401 });
     }
     const text = await req.text();

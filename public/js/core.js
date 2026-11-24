@@ -60,7 +60,7 @@
   };
 
   /* ---------- الحالة ---------- */
-  const S = { snapshots: {}, licenses: null, cards: null, summary: null, ds: {}, loaded: false };
+  const S = { snapshots: {}, licenses: null, cards: null, summary: null, ds: {}, dispatch: null, loaded: false };
   const LINKED = () => REGISTRY.filter((p) => p.kind === "linked").map((p) => p.id);
 
   async function loadAll() {
@@ -69,6 +69,7 @@
     S.licenses = lic && lic.rows ? lic : SEED.licenses;
     S.cards = cards && cards.rows ? cards : SEED.cards;
     S.summary = summary;
+    S.dispatch = await Store.get("dispatch");
     const ids = LINKED();
     const dss = await Promise.all(ids.map((id) => Store.get("ds_" + id)));
     ids.forEach((id, i) => { if (dss[i] && dss[i].rows && dss[i].rows.length) S.ds[id] = dss[i]; });
@@ -186,6 +187,29 @@
       return out;
     }
 
+    if (p.id === "dispatch") {
+      const d = S.dispatch, days = (d && d.edc) || [], plans = (d && d.plans) || [];
+      if (!d || (!days.length && !plans.length)) {
+        out.issue = d ? "لا توجد جداول ضمن هذه الفترة." : "لم تصل مزامنة من لوحة التوزيع بعد. تصل تلقائياً عند فتح اللوحة من جهاز المخطط.";
+        if (!d) out.gaps.push({ level: "none", text: "التخطيط اليومي: لم تصل مزامنة من لوحة التوزيع بعد — افتح اللوحة مرة من الجهاز الذي تُعدّ عليه الجداول", app: "dispatch", tab: "analysis" });
+        return out;
+      }
+      const all = days.flatMap((x) => x.rows);
+      const BAD = new Set(["stopped", "late"]), WAIT = /^wait_/;
+      const ok = all.filter((r) => !BAD.has(r.statusCode) && !WAIT.test(r.statusCode) && r.statusCode !== "cancelled" && r.statusCode !== "postponed").length;
+      out.score = all.length ? Math.round((ok / all.length) * 100) : null;
+      out.level = out.score == null ? "none" : out.score >= 80 ? "ok" : out.score >= 55 ? "warn" : "bad";
+      const last = days[0];
+      if (last) {
+        const done = last.rows.filter((r) => r.statusCode === "done").length, stuck = last.rows.filter((r) => BAD.has(r.statusCode) || WAIT.test(r.statusCode)).length;
+        out.fig = String(last.rows.length); out.figLabel = "عمل في جدول " + U.dmy(last.date);
+        out.issue = `${done} مكتمل، ${stuck} متوقف أو متأخر أو بانتظار` + (plans[0] ? ` · توزيع ${U.dmy(plans[0].date)}: ${plans[0].sites.length} موقع، ${plans[0].sites.reduce((t, s) => t + s.team.length, 0)} عامل، ${plans[0].sites.reduce((t, s) => t + s.vehicles.length, 0)} معدة` : "");
+        if (stuck) out.alerts.push({ level: stuck > 3 ? "bad" : "warn", text: `التخطيط اليومي: ${stuck} عمل متوقف أو متأخر أو بانتظار في جدول ${U.dmy(last.date)}`, app: "dispatch", tab: "analysis" });
+      } else if (plans[0]) { out.fig = String(plans[0].sites.length); out.figLabel = "موقع في توزيع " + U.dmy(plans[0].date); out.issue = "لا يوجد جدول أعمال يومية مُزامن."; }
+      const age = d.syncedAt ? Math.floor((Date.now() - new Date(d.syncedAt)) / 864e5) : null;
+      if (age != null && age > 1) out.gaps.push({ level: "warn", text: `التخطيط اليومي: آخر مزامنة من لوحة التوزيع منذ ${U.days(age)}`, app: "dispatch", tab: "analysis" });
+      return out;
+    }
     if (p.id === "safety") {
       const rows = cardRows();
       const exp = rows.filter((c) => c.st === "expired");
@@ -213,12 +237,13 @@
     if (!period || (!period.from && !period.to)) return fn();
     S.period = period;
     const inR = (d) => !!d && (!period.from || d >= period.from) && (!period.to || d <= period.to);
-    const keep = { l: S.licenses, c: S.cards, d: S.ds };
+    const keep = { l: S.licenses, c: S.cards, d: S.ds, x: S.dispatch };
+    if (keep.x) S.dispatch = { ...keep.x, edc: (keep.x.edc || []).filter((d) => inR(d.date)), plans: (keep.x.plans || []).filter((d) => inR(d.date)) };
     S.licenses = { ...keep.l, rows: (keep.l.rows || []).filter((r) => inR(r.end)) };
     S.cards = { ...keep.c, rows: (keep.c.rows || []).filter((r) => inR(r.exp)) };
     S.ds = {};
     Object.keys(keep.d).forEach((id) => { const sc = window.DS && DS.SCHEMAS[id]; S.ds[id] = { ...keep.d[id], rows: keep.d[id].rows.filter((r) => sc && inR(r[sc.dateKey])) }; });
-    try { return fn(); } finally { S.licenses = keep.l; S.cards = keep.c; S.ds = keep.d; S.period = null; }
+    try { return fn(); } finally { S.licenses = keep.l; S.cards = keep.c; S.ds = keep.d; S.dispatch = keep.x; S.period = null; }
   }
   function evaluateAll(period) {
     return withPeriod(period, evaluateNow);
@@ -249,6 +274,13 @@
       L.push(`\n## ${p.name} — آخر القراءات`);
       arr.forEach((s) => L.push(`- ${s.date}: ` + p.fields.map((f) => `${f.label}=${s.values[f.key] ?? "؟"}${f.unit ? " " + f.unit : ""}`).join("، ") + (s.note ? ` (ملاحظة: ${s.note})` : "")));
     });
+    if (S.dispatch && (S.dispatch.edc || []).length) {
+      const x = S.dispatch.edc[0];
+      L.push(`\n## جدول الأعمال اليومية (الكهرباء) — ${x.date}، ${x.rows.length} عمل — رقم|أمر العمل|نوع العمل|التصنيف|المستلم|الموقع|الجهد|الحالة|الإنجاز`);
+      x.rows.forEach((r) => L.push(`${r.seq}|${r.woNumber}|${r.workType}|${r.category}|${r.receiver}|${r.location}|${r.voltage}|${r.status}|${r.progress ?? ""}`));
+      const pl = (S.dispatch.plans || [])[0];
+      if (pl) { L.push(`\n## توزيع العمالة والمعدات — ${pl.date}`); pl.sites.forEach((s) => L.push(`- ${s.name}${s.workType ? " (" + s.workType + ")" : ""}: معدات ${s.vehicles.map((v) => "NP#" + v.fleetNo + (v.driver ? "/" + v.driver : "")).join("، ") || "—"} · فريق ${s.team.map((t) => t.name + (t.role === "foreman" ? " (فورمان)" : "")).join("، ") || "—"}`)); }
+    }
     L.push(`\n## الرخص (ملف بتاريخ ${S.licenses.asof}) — رقم|أمر العمل|الموقع|المهندس|الانتهاء|التصنيف|أيام التجاوز|السبب`);
     licRows().forEach((r) => L.push(`${r.id}|${r.wo}|${r.loc}|${r.eng}|${r.end}|${r.clsName}|${r.closed ? "مغلقة" : r.over}|${(r.why || "").slice(0, 160)}`));
     L.push(`\n## بطاقات السلامة — رقم|الاسم|الانتهاء|الأيام المتبقية|الحالة|ملاحظة`);

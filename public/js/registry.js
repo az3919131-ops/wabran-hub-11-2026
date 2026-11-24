@@ -97,21 +97,9 @@
       name: "تخطيط العمل اليومي",
       short: "التخطيط اليومي",
       icon: "M3 17l6-6 4 4 8-8M15 7h6v6",
-      purpose: "توزيع الفرق والمهام على مواقع اليوم",
-      kind: "linked",
+      purpose: "جدول الأعمال اليومية للكهرباء وتوزيع العمالة والمعدات على مواقع اليوم",
+      kind: "native",
       url: "https://najran-dispatch-board.netlify.app/",
-      fields: [
-        { key: "crews", label: "فرق اليوم", better: "up" },
-        { key: "tasks", label: "مهام مخططة", better: "up" },
-        { key: "tasksDone", label: "مهام منجزة", better: "up" },
-        { key: "idle", label: "فرق بلا مهام", better: "down" },
-      ],
-      health(s) {
-        const r = pct(s.tasksDone, s.tasks);
-        if (r == null) return null;
-        const level = s.idle > 0 && r < 60 ? "bad" : s.idle > 0 || r < 80 ? "warn" : "ok";
-        return { level, score: r, text: `إنجاز مهام اليوم ${r}%` + (s.idle ? ` و${s.idle} فرق بلا مهام` : "") };
-      },
     },
     {
       id: "licenses",

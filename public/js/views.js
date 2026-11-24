@@ -9,7 +9,7 @@
   const reg = (id) => REGISTRY.find((p) => p.id === id);
   const link = (app, tab) => `#/app/${app}${tab ? "/" + tab : ""}`;
   let E = null;
-  const ui = { df: { dims: {}, state: "", from: "", to: "" }, lf: { eng: "", state: "", from: "", to: "" }, licPer: 0, licF: "", licQ: "", cardQ: "", pendLic: null, pendCards: null, dsF: "", dsQ: "", pendDs: null };
+  const ui = { dpDate: "", ddDate: "", ddSt: "", df: { dims: {}, state: "", from: "", to: "" }, lf: { eng: "", state: "", from: "", to: "" }, licPer: 0, licF: "", licQ: "", cardQ: "", pendLic: null, pendCards: null, dsF: "", dsQ: "", pendDs: null };
 
   /* ---------- القائمة الجانبية ---------- */
   function renderNav(route) {
@@ -418,6 +418,81 @@
     el.innerHTML = `<div style="margin-top:14px;display:grid;gap:10px"><b>قرأت ${P.list.length} بطاقة.</b>${P.skipped.length ? `<div class="note">تخطيت ${P.skipped.length} صفاً: ${esc(P.skipped.slice(0, 6).join("، "))}</div>` : ""}<div><button class="btn pri" type="button" id="cardCommit">اعتماد واستبدال السجل</button> <button class="btn" type="button" id="cardCancel">إلغاء</button></div></div>`;
   }
 
+  /* ---------- تخطيط العمل اليومي: جدول الأعمال اليومية (الكهرباء) + جدول التوزيع المنسق ---------- */
+  const VCAT = { winch: "ونش", bucket: "سلة", jcb: "JCB", pickup: "بيك أب", trailer: "تريلا" };
+  const DISP_LOGO = location.origin + "/img/";
+  const STCOL = (c) => (c === "done" ? "p-ok" : c === "stopped" || c === "late" ? "p-bad" : /^wait_/.test(c || "") ? "p-warn" : "p-none");
+  const EDC_HEAD = ["الرقم", "أمر عمل", "نوع العمل", "العمل مشاريع/انشاءات", "المقاول", "المستلم", "الجوال", "الموقع", "رابط Google Map", "الإحداثيات", "الجهد", "الاستشاري", "رقم الإشعار"];
+  const edcRow = (r) => [r.seq, r.woNumber, r.workType, r.category, r.contractor, r.receiver, r.mobile, r.location, r.mapsUrl, r.coordsText, r.voltage, r.consultant, r.notificationNo];
+  const dayName = (iso) => ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"][U.parseISO(iso).getDay()];
+
+  function printEdc(day) {
+    const w = window.open("", "_blank"); if (!w) { alert("اسمح بالنوافذ المنبثقة للطباعة."); return; }
+    const cls = "Classified as Confidential Internal by SEC - الشركة السعودية للكهرباء مصنف مقيد (داخلي)";
+    w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>جدول الأعمال اليومية ${day.date}</title><style>@page{size:A4 landscape;margin:8mm}body{font-family:Arial,Tahoma,sans-serif;color:#000;margin:0;padding:10px}.cls{text-align:center;font-size:9px;font-weight:600;color:#8b8000;margin:4px 0}.hd{display:flex;align-items:center;gap:16px;margin-bottom:8px}.hd img{height:60px}.hd div{flex:1;text-align:center}.hd b{display:block;font-size:18px}table{border-collapse:collapse;width:100%}th{background:#1f3864;color:#fff;font-size:10px;border:1px solid #000;padding:4px}td{border:1px solid #000;font-size:10px;padding:2px 4px;vertical-align:top}.ltr{direction:ltr}.sign{margin-top:14px;text-align:center;direction:ltr;font-weight:bold;font-size:11px}</style></head><body>
+      <p class="cls">${cls}</p><div class="hd"><img src="${DISP_LOGO}logo-0.png" alt=""><div><b>جدول الأعمال اليومية</b><span>شركة ناصر مانع وبران و شركاءه</span><br><span>اليوم: <b style="display:inline;font-size:13px">${dayName(day.date)}</b> &nbsp; التاريخ: <b style="display:inline;font-size:13px" class="ltr">${day.date}</b>${day.version ? ` (نسخة معتمدة · إصدار ${day.version})` : ""}</span></div><img src="${DISP_LOGO}logo-1.jpeg" alt=""></div>
+      <table><thead><tr>${EDC_HEAD.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${day.rows.map((r) => `<tr>${edcRow(r).map((v, i) => `<td${[1, 6, 8, 9, 12].includes(i) ? ' class="ltr"' : ""}>${esc(v ?? "")}</td>`).join("")}</tr>`).join("")}</tbody></table>
+      <p class="cls">${cls}</p><div class="sign">Project Manager | Eng. Ahmed Zahran</div><script>window.onload=()=>setTimeout(()=>window.print(),400)<\/script></body></html>`);
+    w.document.close();
+  }
+
+  function planSheet(pl) {
+    const nTeam = pl.sites.reduce((t, s) => t + s.team.length, 0), nVeh = pl.sites.reduce((t, s) => t + s.vehicles.length, 0);
+    return `<div class="dsheet" id="dsheet" dir="rtl">
+      <div class="ds-hd"><img src="${DISP_LOGO}logo-0.png" alt="شعار ناصر مانع الوبران وشركاه"><div><b>جدول توزيع العمالة والمعدات</b><span>شركة ناصر مانع الوبران وشركاه — فرع نجران</span><span>اليوم: <b>${dayName(pl.date)}</b> · التاريخ: <b class="ltr">${pl.date}</b>${pl.status === "published" ? " · معتمد" : " · مسودة"}</span></div><img src="${DISP_LOGO}logo-1.jpeg" alt="شعار السعودية للطاقة"></div>
+      <div class="ds-sum">${pl.sites.length} موقع · ${nTeam} عامل · ${nVeh} معدة</div>
+      <div class="ds-grid">${pl.sites.map((s, i) => `<section class="ds-site"><h4><span>${i + 1}</span>${esc(s.name)}${s.workType ? `<em>${esc(s.workType)}</em>` : ""}</h4>${s.note ? `<p class="ds-note">${esc(s.note)}</p>` : ""}
+        ${s.vehicles.length ? `<table><thead><tr><th>المعدة</th><th>النوع</th><th>السائق / المشغل</th></tr></thead><tbody>${s.vehicles.map((v) => `<tr><td class="ltr">NP# ${esc(v.fleetNo)}</td><td>${esc(VCAT[v.category] || v.category)}</td><td>${esc(v.driver || "—")}${v.remark ? ` <small>(${esc(v.remark)})</small>` : ""}</td></tr>`).join("")}</tbody></table>` : ""}
+        ${s.team.length ? `<table><thead><tr><th>الاسم</th><th>المهنة</th><th>الدور</th></tr></thead><tbody>${s.team.slice().sort((a, b) => (a.role === "foreman" ? -1 : 0) - (b.role === "foreman" ? -1 : 0)).map((t) => `<tr${t.role === "foreman" ? ' class="fm"' : ""}><td>${esc(t.name)}</td><td>${esc(t.profession)}</td><td>${t.role === "foreman" ? "فورمان" : "عضو فريق"}</td></tr>`).join("")}</tbody></table>` : ""}
+      </section>`).join("")}</div>
+      <div class="ds-sign">Project Manager | Eng. Ahmed Zahran</div></div>`;
+  }
+
+  function dispatchApp(p, tab) {
+    const d = S.dispatch, days = (d && d.edc) || [], plans = (d && d.plans) || [];
+    tab = tab || "analysis";
+    const tabs = [["analysis", "التحليل وجدول الكهرباء اليومي", days[0] ? days[0].rows.length : null], ["sheet", "جدول التوزيع المنسق (للطباعة)"], ["board", "المنصة الأصلية"]];
+    const sync = d && d.syncedAt ? `آخر مزامنة تلقائية من لوحة التوزيع: ${new Date(d.syncedAt).toLocaleString("ar-SA-u-nu-latn")}` : "";
+    const none = `<div class="panel empty"><h3>لم تصل بيانات من لوحة التوزيع بعد</h3><p>لوحة التوزيع تحفظ جداولها داخل متصفح من يعدّها. أضفنا إليها مزامنة تلقائية: يكفي أن يفتح المخطط اللوحة مرة من جهازه، فتصل آخر الجداول هنا وتتحدث كل دقيقة أثناء العمل.</p><a class="btn pri" href="${esc(p.url)}" target="_blank" rel="noopener">فتح لوحة التوزيع</a></div>`;
+    let body = "";
+    if (tab === "board") body = frame(p.url, p.name);
+    else if (tab === "sheet") {
+      if (!plans.length) body = none;
+      else {
+        const pl = plans.find((x) => x.date === ui.dpDate) || plans[0];
+        body = `<div class="panel"><div class="exp-bar" style="margin:0;padding:0;border:0"><span class="hint" style="margin:0">${esc(sync)}. يُعرض آخر يوم محدّث تلقائياً، ويمكن اختيار يوم سابق.</span>
+          <span class="exp-btns"><select id="dpDate">${plans.map((x) => `<option value="${x.date}" ${x.date === pl.date ? "selected" : ""}>${dayName(x.date)} ${U.dmy(x.date)}${x.status === "published" ? " (معتمد)" : ""}</option>`).join("")}</select>
+          <button class="btn pri sm" type="button" data-dsprint>طباعة / PDF</button><button class="btn sm" type="button" data-dspng>حفظ صورة PNG</button></span></div></div>` + planSheet(pl);
+      }
+    } else {
+      if (!days.length) body = none;
+      else {
+        const day = days.find((x) => x.date === ui.ddDate) || days[0];
+        const rows = day.rows.filter((r) => !ui.ddSt || r.status === ui.ddSt);
+        const cnt = (k) => { const m = new Map(); day.rows.forEach((r) => m.set(r[k] || "غير محدد", (m.get(r[k] || "غير محدد") || 0) + 1)); return [...m].sort((a, b) => b[1] - a[1]); };
+        const bl = (list) => { const mx = Math.max(1, ...list.map((x) => x[1])); return `<div class="bars">${list.map(([l, v]) => `<div class="bar"><span>${esc(l)}</span><span class="tr"><span class="fl" style="width:${(v / mx) * 100}%"></span></span><span class="v num">${v}</span></div>`).join("")}</div>`; };
+        const st = cnt("status");
+        const done = day.rows.filter((r) => r.statusCode === "done").length, stuck = day.rows.filter((r) => r.statusCode === "stopped" || r.statusCode === "late" || /^wait_/.test(r.statusCode)).length;
+        const avgP = day.rows.filter((r) => r.progress != null).reduce((t, r, _, a) => t + r.progress / a.length, 0);
+        const trend = days.slice().reverse();
+        const mxT = Math.max(1, ...trend.map((x) => x.rows.length));
+        body = `<div class="panel" style="margin-bottom:16px"><div class="exp-bar" style="margin:0;padding:0;border:0"><span class="hint" style="margin:0">${esc(sync)}</span>
+            <span class="exp-btns"><select id="ddDate">${days.map((x) => `<option value="${x.date}" ${x.date === day.date ? "selected" : ""}>${dayName(x.date)} ${U.dmy(x.date)} (${x.rows.length})</option>`).join("")}</select>
+            <button class="btn pri sm" type="button" data-edcprint>طباعة جدول الكهرباء</button></span></div></div>`
+          + kpis([["أعمال اليوم", day.rows.length], ["مكتملة", done, "ok"], ["متوقفة / متأخرة / بانتظار", stuck, stuck ? "bad" : ""], ["متوسط الإنجاز", Math.round(avgP) + "%"], ["المواقع", new Set(day.rows.map((r) => r.location)).size]])
+          + `<div class="section two"><div class="panel"><h3>حسب الحالة</h3>${bl(st)}</div><div class="panel"><h3>عدد الأعمال في الأيام المُزامنة</h3><div class="bars">${trend.map((x) => `<div class="bar"><span>${dayName(x.date)} ${U.dmy(x.date)}</span><span class="tr"><span class="fl" style="width:${(x.rows.length / mxT) * 100}%"></span></span><span class="v num">${x.rows.length}</span></div>`).join("")}</div></div></div>
+          <div class="section two"><div class="panel"><h3>حسب نوع العمل</h3>${bl(cnt("workType"))}</div><div class="panel"><h3>حسب المستلم</h3>${bl(cnt("receiver"))}</div></div>
+          <section class="section"><h2>جدول الأعمال اليومية — ${dayName(day.date)} ${U.dmy(day.date)}${day.version ? ` (معتمد · إصدار ${day.version})` : ""}</h2>
+          <div class="panel" style="margin:10px 0"><div class="chips"><button class="chip" type="button" data-ddst="" aria-pressed="${!ui.ddSt}">الكل ${day.rows.length}</button>${st.map(([l, v]) => `<button class="chip" type="button" data-ddst="${esc(l)}" aria-pressed="${ui.ddSt === l}">${esc(l)} ${v}</button>`).join("")}</div>
+          ${expBar(ui.ddSt ? "الحالة: " + ui.ddSt : "كل أعمال اليوم", rows.length, "data-ddexp")}</div>
+          <div class="tbl"><table><thead><tr><th>#</th><th>أمر العمل</th><th>نوع العمل</th><th>التصنيف</th><th>المستلم</th><th>الجوال</th><th>الموقع</th><th>الجهد</th><th>الاستشاري</th><th>الحالة</th><th>الإنجاز</th><th>ملاحظات</th></tr></thead><tbody>
+          ${rows.map((r) => `<tr><td>${r.seq}</td><td class="ltr">${esc(r.woNumber)}</td><td>${esc(r.workType)}</td><td>${esc(r.category)}</td><td>${esc(r.receiver)}</td><td class="ltr">${esc(r.mobile)}</td><td>${r.mapsUrl ? `<a href="${esc(r.mapsUrl)}" target="_blank" rel="noopener">${esc(r.location)}</a>` : esc(r.location)}</td><td>${esc(r.voltage)}</td><td>${esc(r.consultant)}</td><td><span class="pill ${STCOL(r.statusCode)}">${esc(r.status)}</span></td><td class="num">${r.progress == null ? "—" : r.progress + "%"}</td><td class="wrap">${esc([r.notes, r.delayReason].filter(Boolean).join(" · "))}</td></tr>`).join("") || `<tr><td colspan="12" class="empty">لا أعمال بهذه الحالة.</td></tr>`}</tbody></table></div></section>`;
+        ui.ddRows = rows; ui.ddDay = day;
+      }
+    }
+    view.innerHTML = appShell(p, tabs, tab, body);
+  }
+
   /* ---------- الإعدادات ---------- */
   function settings() {
     view.innerHTML = `<div class="app-head"><div><h1>إعدادات البوابة</h1><p>تخص هذا الجهاز فقط.</p></div></div>
@@ -437,7 +512,7 @@
     $("#crumb").textContent = r.name === "app" ? reg(r.app).name : r.name === "settings" ? "إعدادات البوابة" : "الصفحة الرئيسية";
     if (r.name === "home") home();
     else if (r.name === "settings") settings();
-    else { const p = reg(r.app); if (p.kind === "linked") linkedApp(p, r.tab); else if (p.id === "licenses") licensesApp(p, r.tab); else safetyApp(p); }
+    else { const p = reg(r.app); if (p.kind === "linked") linkedApp(p, r.tab); else if (p.id === "licenses") licensesApp(p, r.tab); else if (p.id === "dispatch") dispatchApp(p, r.tab); else safetyApp(p); }
     $("#side").classList.remove("open"); $("#menuBtn").setAttribute("aria-expanded", "false");
   }
   let lastApp = null;
@@ -450,12 +525,22 @@
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
   document.addEventListener("click", async (ev) => {
-    const t = ev.target.closest("[data-hper],[data-dexp],[data-dlexp],[data-lexp],[data-dfreset],[data-lfreset],[data-licper],#syncNow,[data-dsf],[data-tpl],[data-dscsv],[data-dsclear],[data-dsparse],#dsCommit,#dsCancel,[data-go],[data-licf],[data-csv],[data-theme],#licCommit,#licCancel,#cardCommit,#cardCancel,#genSummary,#settingsBtn,#menuBtn");
+    const t = ev.target.closest("[data-dsprint],[data-dspng],[data-edcprint],[data-ddst],[data-ddexp],[data-hper],[data-dexp],[data-dlexp],[data-lexp],[data-dfreset],[data-lfreset],[data-licper],#syncNow,[data-dsf],[data-tpl],[data-dscsv],[data-dsclear],[data-dsparse],#dsCommit,#dsCancel,[data-go],[data-licf],[data-csv],[data-theme],#licCommit,#licCancel,#cardCommit,#cardCancel,#genSummary,#settingsBtn,#menuBtn");
     if (!t) return;
     if (t.dataset.go) { location.hash = t.dataset.go; return; }
     if (t.id === "menuBtn") { const o = $("#side").classList.toggle("open"); t.setAttribute("aria-expanded", String(o)); return; }
     if (t.id === "settingsBtn") { location.hash = "#/settings"; return; }
     if (t.dataset.licf !== undefined) { ui.licF = t.dataset.licf; render(); return; }
+    if (t.dataset.ddst !== undefined) { ui.ddSt = t.dataset.ddst; render(); return; }
+    if (t.dataset.edcprint !== undefined) { if (ui.ddDay) printEdc(ui.ddDay); return; }
+    if (t.dataset.ddexp) { const day = ui.ddDay; exportReport(t.dataset.ddexp, { title: "جدول الأعمال اليومية " + day.date, desc: (ui.ddSt ? "الحالة: " + ui.ddSt : "كل أعمال اليوم") + " · " + dayName(day.date) + " " + U.dmy(day.date), count: ui.ddRows.length, file: "edc-" + day.date, head: EDC_HEAD.concat(["الحالة", "الإنجاز", "ملاحظات"]), rows: ui.ddRows.map((r) => edcRow(r).concat([r.status, r.progress == null ? "" : r.progress + "%", [r.notes, r.delayReason].filter(Boolean).join(" · ")])) }); return; }
+    if (t.dataset.dsprint !== undefined) { document.body.classList.add("print-sheet"); setTimeout(() => { window.print(); document.body.classList.remove("print-sheet"); }, 50); return; }
+    if (t.dataset.dspng !== undefined) {
+      t.disabled = true; t.textContent = "جارٍ تجهيز الصورة…";
+      const go = () => html2canvas($("#dsheet"), { scale: 2, useCORS: true, backgroundColor: "#ffffff" }).then((c) => { const a = document.createElement("a"); a.href = c.toDataURL("image/png"); a.download = "dispatch-" + ($("#dpDate") ? $("#dpDate").value : "") + ".png"; a.click(); }).catch(() => alert("تعذّر إنشاء الصورة. استخدم الطباعة واختر حفظ PDF.")).finally(() => { t.disabled = false; t.textContent = "حفظ صورة PNG"; });
+      if (window.html2canvas) go(); else { const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"; sc.onload = go; sc.onerror = () => { alert("تعذّر تحميل أداة الصور."); t.disabled = false; t.textContent = "حفظ صورة PNG"; }; document.head.appendChild(sc); }
+      return;
+    }
     if (t.dataset.hper) { const hp = U.ls.get(HP_KEY) || {}; const k = t.dataset.hper; hp.per = k === "1" ? 1 : k === "3" ? 3 : k; U.ls.set(HP_KEY, hp); render(); return; }
     if (t.dataset.dexp || t.dataset.dlexp) {
       const p = reg(parse().app), A = DS.analyze(p.id, S.ds[p.id]);
@@ -534,6 +619,8 @@
   document.addEventListener("change", (ev) => {
     const tg = ev.target;
     if (tg.dataset && tg.dataset.dfdim) { ui.df.dims[tg.dataset.dfdim] = tg.value; render(); return; }
+    if (tg.id === "dpDate") { ui.dpDate = tg.value; render(); return; }
+    if (tg.id === "ddDate") { ui.ddDate = tg.value; ui.ddSt = ""; render(); return; }
     if (tg.id === "hpFrom" || tg.id === "hpTo") { const hp = U.ls.get(HP_KEY) || { per: "custom" }; hp.per = "custom"; hp[tg.id === "hpFrom" ? "from" : "to"] = tg.value; U.ls.set(HP_KEY, hp); render(); return; }
     const map = { dfState: ["df", "state"], dfFrom: ["df", "from"], dfTo: ["df", "to"], lfEng: ["lf", "eng"], lfState: ["lf", "state"], lfFrom: ["lf", "from"], lfTo: ["lf", "to"] };
     if (map[tg.id]) { ui[map[tg.id][0]][map[tg.id][1]] = tg.value; render(); return; }
