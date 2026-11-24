@@ -9,6 +9,7 @@
   var HUB = "https://wabran-najran-hub.netlify.app/";
   var me = (document.currentScript && document.currentScript.getAttribute("data-platform")) || "";
   var P = [
+    ["bigprojects", "منصة المشاريع الكبيرة"],
     ["projects", "منصة مستهدف الإنشاءات والمشاريع"],
     ["schedule", "جدول الأعمال اليومي والشهري"],
     ["invoices", "تحليل الفواتير الضريبية"],

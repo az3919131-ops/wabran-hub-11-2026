@@ -11,6 +11,15 @@
 
   window.REGISTRY = [
     {
+      id: "bigprojects",
+      name: "منصة المشاريع الكبيرة",
+      short: "المشاريع الكبيرة",
+      icon: "M3 21h18M5 21V8l7-5 7 5v13M9 21v-5h6v5M9 11h.01M15 11h.01",
+      purpose: "مشاريع الوبران الكبيرة (أكبر من 100 ألف): التنفيذ والتكلفة والصرف والمستخلصات",
+      kind: "linked",
+      url: "https://najran-projects-dashboard.netlify.app/#projects",
+    },
+    {
       id: "projects",
       name: "منصة مستهدف الإنشاءات والمشاريع",
       short: "مستهدف الإنشاءات",

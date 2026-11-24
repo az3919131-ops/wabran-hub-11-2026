@@ -12,6 +12,40 @@
   const C = (label, kind) => ({ label, kind });
 
   const SCHEMAS = {
+    bigprojects: {
+      unit: "مشروع", origin: "آخر تقرير مرفوع في منصة المشاريع الكبيرة (مشاريع أكبر من 100 ألف)",
+      cols: {
+        wo: { label: "رقم أمر العمل", kw: ["رقم أمر العمل", "امر العمل", "wo"], key: true },
+        name: { label: "اسم المشروع", kw: ["اسم المشروع", "المشروع"] },
+        type: { label: "نوع أمر العمل", kw: ["نوع أمر العمل", "نوع"] },
+        status: { label: "موقف التنفيذ", kw: ["موقف التنفيذ"] },
+        received: { label: "تاريخ الاستلام", kw: ["تاريخ استلام", "الاستلام"], type: "date" },
+        invoice: { label: "الأجور طبقاً للفاتورة", kw: ["الاجور", "الأجور"], type: "num" },
+        estCost: { label: "التكلفة التقديرية", kw: ["التقديرية", "التقديريه"], type: "num" },
+        actCost: { label: "التكلفة حسب المنفذ", kw: ["حسب المنفذ", "المنفذة"], type: "num" },
+        pct: { label: "نسبة التنفيذ %", kw: ["نسبة التنفيذ", "نسبه التنفيذ"], type: "num" },
+        delivered: { label: "تسليم أمر العمل للكهرباء", kw: ["تاريخ تسليم"], type: "date" },
+        partial: { label: "الصرف الجزئي", kw: ["الصرف الجزئي"], type: "num" },
+        certDate: { label: "تاريخ إصدار الشهادة", kw: ["إصدار الشهادة", "اصدار الشهاده"], type: "date" },
+        final: { label: "مبلغ الصرف النهائي", kw: ["الصرف النهائي"], type: "num" },
+        payStatus: { label: "موقف صرف المستخلص", kw: ["موقف صرف"] },
+        materials: { label: "موقف المواد", kw: ["موقف المواد"] },
+        remaining: { label: "الأعمال المتبقية", kw: ["المتبقية", "المتبقيه"] },
+        finished: { label: "الأعمال المنتهية", kw: ["المنتهية", "المنتهيه"] },
+        uds: { label: "موقف UDS", kw: ["uds"] },
+      },
+      classes: { final: C("صُرف النهائي", "done"), issued: C("صدرت الشهادة — بانتظار الصرف", "active"), balancing: C("جاري موازنة المواد", "pending"), exec: C("جاري التنفيذ", "active") },
+      classify(t, r) {
+        if (/نهائي/.test(r.payStatus || "")) return "final";
+        if (/موازنة/.test(t)) return "balancing";
+        if (/تنفيذ/.test(t)) return "exec";
+        return "issued";
+      },
+      dateKey: "received", amountKey: "actCost", sla: 0,
+      dims: [["type", "نوع أمر العمل"], ["status", "موقف التنفيذ"], ["payStatus", "موقف صرف المستخلص"], ["materials", "موقف المواد"], ["uds", "موقف UDS"]],
+      score: "costRatio",
+      title: (r) => r.name || r.type || "",
+    },
     projects: {
       unit: "أمر عمل", origin: "أوامر عمل المشاريع من «منصة مستهدف الإنشاءات والمشاريع»",
       cols: {
@@ -139,7 +173,7 @@
       title: (r) => r.task || r.site || "",
     },
   };
-  const AUTO = { projects: true, schedule: true, invoices: true };
+  const AUTO = { bigprojects: true, projects: true, schedule: true, invoices: true };
 
   /* ---------- قراءة الملف أو الجدول المنسوخ ---------- */
   const norm = (s) => String(s ?? "").toLowerCase().replace(/[إأآ]/g, "ا").replace(/ة/g, "ه").replace(/\s+/g, " ").trim();
@@ -244,7 +278,8 @@
     const d30 = U.iso(new Date(today.getTime() - 30 * 864e5));
     const days30 = new Set(live.filter((r) => r[s.dateKey] > d30 && r[s.dateKey] <= todayIso).map((r) => r[s.dateKey])).size;
     let score = null;
-    if (s.score === "amountDone") { const t = sum(live), p = sum(done); score = t > 0 ? Math.round((p / t) * 100) : null; }
+    if (s.score === "costRatio") { const est = live.reduce((t, r) => t + (Number(r.estCost) || 0), 0), act = live.reduce((t, r) => t + (Number(r.actCost) || 0), 0); score = est > 0 ? Math.round((act / est) * 100) : null; }
+    else if (s.score === "amountDone") { const t = sum(live), p = sum(done); score = t > 0 ? Math.round((p / t) * 100) : null; }
     else if (s.score === "notLate") score = W(open) ? Math.round((1 - W(late) / W(open)) * 100) : 100;
     else if (s.score === "cadence") score = Math.min(100, Math.round((days30 / 26) * 100));
     else if (s.score === "pastDone") { const past = live.filter((r) => r[s.dateKey] && r[s.dateKey] <= todayIso); score = W(past) ? Math.round((W(past.filter((r) => r.kind === "done")) / W(past)) * 100) : null; }
@@ -258,7 +293,15 @@
     const A = analyze(p.id, ds), name = p.name, s = A.s;
     out.score = A.score; out.level = A.level;
     const age = U.daysFrom(ds.asof);
-    if (p.id === "invoices") {
+    if (p.id === "bigprojects") {
+      const est = A.live.reduce((t, r) => t + (Number(r.estCost) || 0), 0), part = A.live.reduce((t, r) => t + (Number(r.partial) || 0), 0), fin = A.live.reduce((t, r) => t + (Number(r.final) || 0), 0);
+      const balancing = A.live.filter((r) => r.cls === "balancing").length, notFinal = A.live.filter((r) => r.cls !== "final").length;
+      out.fig = String(A.live.length); out.figLabel = `مشروع بتكلفة منفذة ${U.fmt(Math.round(A.total))} ريال`;
+      out.issue = `التنفيذ المالي ${A.score ?? "—"}% من ${U.fmt(Math.round(est))} ريال · صرف جزئي ${U.fmt(Math.round(part))} · نهائي ${U.fmt(Math.round(fin))} · ${notFinal} بلا صرف نهائي`;
+      if (balancing) out.alerts.push({ level: "warn", text: `المشاريع الكبيرة: ${balancing} مشروع في موازنة المواد`, app: p.id, tab: "all" });
+      const age = U.daysFrom(ds.asof); if (age > 21) out.gaps.push({ level: "warn", text: `المشاريع الكبيرة: آخر تقرير مرفوع بتاريخ ${U.dmy(ds.asof)} (منذ ${U.days(age)})`, app: p.id, tab: "data" });
+      return A;
+    } else if (p.id === "invoices") {
       const pend = A.total - A.doneAmt;
       out.fig = U.fmt(Math.round(pend)); out.figLabel = "ريال غير محصّل";
       out.issue = `نسبة التحصيل ${A.score ?? "—"}% من ${U.fmt(Math.round(A.total))} ريال، و${A.W(A.open)} فاتورة لم تُحصّل` + (A.late.length ? ` منها ${A.W(A.late)} أقدم من ${s.sla} يوماً` : "");

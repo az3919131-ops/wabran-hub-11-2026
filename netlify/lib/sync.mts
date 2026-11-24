@@ -52,6 +52,30 @@ export function invoicesFrom(list: any[]) {
   return { asof: today(), source: "najran-invoice-intelligence", rows };
 }
 
+// منصة المشاريع الكبيرة: آخر تقرير مرفوع في najran-projects-dashboard (ورقة «مشاريع اكبر من 100»)
+const isoDMY = (v: any) => {
+  if (v == null || v === "") return null;
+  if (typeof v === "number" && v > 20000 && v < 80000) return new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 864e5).toISOString().slice(0, 10);
+  const m = String(v).trim().match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
+  if (m) { let y = +m[3]; if (y < 100) y += 2000; return `${y}-${String(+m[2]).padStart(2, "0")}-${String(+m[1]).padStart(2, "0")}`; }
+  const k = String(v).match(/^(\d{4})-(\d{2})-(\d{2})/); return k ? k[0] : null;
+};
+const num = (v: any) => (v == null || v === "" || isNaN(Number(v)) ? null : Number(v));
+const txt = (v: any) => (v == null ? "" : String(v).replace(/\s+/g, " ").trim());
+export function bigProjectsFrom(rep: any) {
+  const pj = rep.projects_data || {};
+  const rows = (pj.rows || []).filter((r: any) => /^\d{6,}$/.test(String(r.cells?.B ?? "").trim())).map((r: any) => {
+    const c = r.cells || {};
+    return {
+      wo: String(c.B), type: txt(c.C), received: isoDMY(c.D), invoice: num(c.E), name: txt(c.F), status: txt(c.G) || "غير محدد",
+      estCost: num(c.H), actCost: num(c.I), pct: c.J == null ? null : Math.round(Number(c.J) * 1000) / 10, delivered: isoDMY(c.K),
+      partial: num(c.L), certDate: isoDMY(c.M), final: num(c.N), extract: txt(c.O), payStatus: txt(c.P), materials: txt(c.Q),
+      remaining: txt(c.R), finished: txt(c.S), uds: txt(c.T),
+    };
+  });
+  return { asof: rep.report_date || new Date().toISOString().slice(0, 10), source: rep.file_name || "najran-projects-dashboard", rows };
+}
+
 async function getJSON(url: string, headers: Record<string, string> = {}) {
   const r = await fetch(url, { headers });
   if (!r.ok) throw new Error(`${url} → ${r.status}`);
@@ -62,6 +86,13 @@ export async function runSync() {
   const store = getStore({ name: "wabran-hub", consistency: "strong" });
   const report: Record<string, string> = {};
   const jobs: [string, () => Promise<any>][] = [
+    ["bigprojects", async () => {
+      const B = "https://najran-projects-dashboard.netlify.app/api/reports";
+      const list = await getJSON(B);
+      if (!Array.isArray(list) || !list.length) throw new Error("لا توجد تقارير مرفوعة في منصة المشاريع الكبيرة");
+      const latest = list.slice().sort((a: any, b: any) => String(b.report_date + b.uploaded_at).localeCompare(String(a.report_date + a.uploaded_at)))[0];
+      return bigProjectsFrom(await getJSON(B + "?id=" + encodeURIComponent(latest.id)));
+    }],
     ["projects", async () => projectsFrom(await getJSON("https://mainoffice-wo-report.netlify.app/api/data"))],
     ["schedule", async () => scheduleFrom(await getJSON("https://najran-wabran-dor-dashboard.netlify.app/seed_items.json"))],
     ["invoices", async () => {
