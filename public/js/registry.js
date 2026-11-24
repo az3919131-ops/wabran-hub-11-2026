@@ -12,10 +12,10 @@
   window.REGISTRY = [
     {
       id: "projects",
-      name: "تقارير المشاريع",
-      short: "المشاريع",
+      name: "منصة مستهدف الإنشاءات والمشاريع",
+      short: "مستهدف الإنشاءات",
       icon: "M4 20V9l8-5 8 5v11M9 20v-6h6v6",
-      purpose: "موقف المشاريع وأوامر العمل وحالة الإغلاق",
+      purpose: "مستهدف الإنشاءات: موقف أوامر عمل المشاريع وحالة الإغلاق",
       kind: "linked",
       url: "https://mainoffice-wo-report.netlify.app/",
       fields: [
