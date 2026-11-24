@@ -54,7 +54,9 @@
     const sub = `مؤشر سلامة الفرع <b class="num">${E.overall ?? "—"}%</b>، محسوب من ${E.covered} من ${E.total} منصات. ` +
       (empty.length ? `${empty.length} منصات لا تظهر في التقييم لأنها بلا قراءة: ${empty.map((i) => esc(i.short)).join("، ")}.` : "كل المنصات داخلة في التقييم.");
 
-    const tiers = E.items.map((i) => `<button class="tier ${i.score == null ? "none" : ""}" style="--c:${LVC[i.level]}" data-go="${link(i.id)}" type="button" aria-label="${esc(i.name)}: ${i.score == null ? "بلا بيانات" : i.score + "%"}">
+    // تحليل أداء الفرع: 50% فأكثر أداء جيد (أخضر)، وأقل من 50% يحتاج تحسيناً (أحمر)
+    const perfC = (v) => (v == null ? "var(--none)" : v >= 50 ? "var(--ok)" : "var(--bad)");
+    const tiers = E.items.map((i) => `<button class="tier ${i.score == null ? "none" : ""}" style="--c:${perfC(i.score)}" data-go="${link(i.id)}" type="button" aria-label="${esc(i.name)}: ${i.score == null ? "بلا بيانات" : i.score + "%"}">
         <span class="lb">${esc(i.short)}</span><span class="tr"><span class="fl" style="width:${i.score ?? 0}%"></span></span><span class="vl num">${i.score == null ? "—" : i.score + "%"}</span></button>`).join("");
 
     const rows = E.items.map((i) => `<a class="row" href="${link(i.id)}">
@@ -79,8 +81,8 @@
         <div class="panel"><h3>تحتاج قراراً</h3><p class="hint">مرتبة من الأخطر. كل تنبيه يفتح مكانه.</p>
           ${E.alerts.length ? `<ul class="list">${E.alerts.map(li).join("")}</ul>` : `<div class="empty">لا تنبيهات اليوم.</div>`}</div>
         <div class="tower" aria-label="تحليل أداء الفرع">
-          <h2>تحليل أداء الفرع <span class="num">${E.overall ?? "—"}%</span></h2>
-          <p>كل طبقة منصة؛ طولها نسبة سلامتها ولونها حالتها. الطبقة المخططة بلا بيانات.</p>
+          <h2>تحليل أداء الفرع <span class="num" style="color:${perfC(E.overall)}">${E.overall ?? "—"}%</span></h2>
+          <p>${E.overall == null ? "" : E.overall >= 50 ? "أداء الفرع جيد. " : "أداء الفرع يحتاج تحسيناً. "}كل طبقة قسم؛ طولها نسبة أدائه. الأخضر 50% فأكثر أداء جيد، والأحمر أقل من 50%، والمخططة بلا بيانات.</p>
           <div class="tiers">${tiers}</div><div class="base"></div>
         </div>
       </div>
