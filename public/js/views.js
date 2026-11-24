@@ -227,6 +227,37 @@
     exportReport(kind, { title: p.name, desc, head, rows, count: A.W(list), file: p.id });
   }
 
+  /* المؤشرات الرئيسية لمنصة مستهدف الإنشاءات — بنفس تصميم المنصة الأصلية */
+  function projKpis(A) {
+    const rows = A.live, tot = rows.reduce((t, r) => t + (Number(r.amount) || 0), 0);
+    const wos = new Set(rows.map((r) => r.wo)).size;
+    const STG = [
+      ["delivery", "تم التسليم للمقاول (لم يُستلم)", "#7C8794", (r) => r.delivered],
+      ["receipt", "تم الاستلام (لم تصدر الشهادة)", "#D9821E", (r) => r.received || r.delivered],
+      ["drawing", "مؤكد ولم يدخل مستخلصاً (الرسم)", "#2F6DB5", (r) => r.cert || r.received || r.delivered],
+      ["invoice", "دخل مستخلصاً ولم يُصرف", "#1E8E4E", (r) => r.abstractDate || r.cert || r.received || r.delivered],
+    ];
+    const med = (a) => { if (!a.length) return null; a.sort((x, y) => x - y); const m = a.length >> 1; return a.length % 2 ? a[m] : Math.round((a[m - 1] + a[m]) / 2); };
+    const mil = (v) => (v >= 1e6 ? (v / 1e6).toFixed(2) + " مليون" : v >= 1e3 ? Math.round(v / 1e3) + " ألف" : money(v));
+    const pc = (v) => (tot ? ((v / tot) * 100).toFixed(1) : "0") + "%";
+    const st = STG.map(([id, label, col, dt]) => {
+      const x = rows.filter((r) => r.cls === id), amt = x.reduce((t, r) => t + (Number(r.amount) || 0), 0);
+      const ages = x.map((r) => U.daysFrom(dt(r))).filter((d) => d != null && d >= 0);
+      return { id, label, col, n: x.length, amt, med: med(ages) };
+    });
+    const inv = st.find((x) => x.id === "invoice"), invPct = tot ? (inv.amt / tot) * 100 : 0;
+    const card = (col, title, val, unit, sub, bar, cls = "") => `<div class="pk ${cls}" style="--c:${col}"><span class="pk-t">${title}</span><b class="pk-v">${val}${unit ? `<small>${unit}</small>` : ""}</b><span class="pk-s">${sub}</span>${bar != null ? `<i class="pk-bar"><i style="width:${Math.min(100, Math.max(0, bar)).toFixed(1)}%"></i></i>` : ""}</div>`;
+    return `<section class="section"><div class="pk-head"><h2>المؤشرات الرئيسية</h2><span>الحجم الفعلي لأوامر العمل في ملف نجران، كل بطاقة تفتح البنود التي بُنيت عليها.</span></div>
+      <div class="pk-grid three">
+        ${card("#8E2A2A", "أوامر العمل (أرقام فريدة)", U.fmt(wos), "", `${U.fmt(rows.length)} بنداً (أمر × رمز نوع) في ${st.filter((x) => x.n).length} مراحل`, null, "big")}
+        ${card("#B8860B", "إجمالي القيمة المسجلة (ريال)", (tot / 1e6).toFixed(2), "مليون", `${money(Math.round(tot))} ريال · مجموع الأعمدة المالية في الملف`, null, "big")}
+        ${card("#1E8E4E", "نسبة القيمة التي دخلت المستخلص", invPct.toFixed(1) + "%", "", `${(inv.amt / 1e6).toFixed(2)} مليون من ${(tot / 1e6).toFixed(2)} مليون ريال — مؤشر مالي لمسار الإقفال، وليس نسبة إنجاز الأعمال`, invPct, "big")}
+      </div>
+      <div class="pk-grid four">
+        ${st.map((x) => `<a class="pk-link" href="#/app/projects/all" data-pkcls="${x.id}">${card(x.col, x.label, U.fmt(x.n), "", `${mil(x.amt)} ريال · ${pc(x.amt)} من القيمة${x.med != null ? " · وسيط البقاء " + U.fmt(x.med) + " يوماً" : ""}`, tot ? (x.amt / tot) * 100 : 0)}</a>`).join("")}
+      </div></section>`;
+  }
+
   function linkedApp(p, tab) {
     const ds = S.ds[p.id];
     const A = ds ? DS.analyze(p.id, ds) : null;
@@ -254,7 +285,7 @@
       const useAmt = p.id === "invoices" || p.id === "schedule";
       const mxM = Math.max(1, ...A.months.map((m) => (useAmt ? m.amt : m.n)));
       const d0 = A.dims[0];
-      body = stale + kpis(k) + `<p class="meta">${esc(ev.issue)}</p>
+      body = stale + (p.id === "projects" ? projKpis(A) : kpis(k)) + `<p class="meta">${esc(ev.issue)}</p>
         <div class="section two">
           ${p.id === "schedule" ? (() => { const byDay = new Map(); A.live.forEach((r) => byDay.set(r.date, (byDay.get(r.date) || 0) + (r.value || 0))); const ds14 = [...byDay].sort((x, y) => (x[0] < y[0] ? 1 : -1)).slice(0, 14); return `<div class="panel"><h3>آخر 14 يوم عمل (ريال)</h3><p class="hint">قيمة المنفذ في كل يوم مسجل.</p>${barList(ds14.map(([d, v]) => ({ l: U.dmy(d), v: Math.round(v), c: "var(--ok)" })), Math.max(1, ...ds14.map((x) => x[1])), money)}</div>`; })() : `<div class="panel"><h3>حسب الحالة</h3><p class="hint">${p.id === "invoices" ? "عدد الفواتير في كل تصنيف." : "أين تقف السجلات الآن."}</p>${barList(A.byCls.map((c) => ({ l: c.label, v: c.n, c: KCOL[c.kind] })), mxC)}</div>`}
           <div class="panel"><h3>${useAmt ? (p.id === "schedule" ? "قيمة المنفذ شهرياً (ريال)" : "قيمة الفواتير شهرياً (ريال)") : "الحركة الشهرية"}</h3><p class="hint">آخر 12 شهراً حسب ${esc(s.cols[s.dateKey].label)}.</p>${barList(A.months.slice().reverse().map((m) => ({ l: m.label + " " + m.key.slice(0, 4), v: useAmt ? Math.round(m.amt) : m.n, c: m.done && !useAmt && m.done === m.n ? "var(--ok)" : "var(--ink)" })), mxM, useAmt ? money : null)}</div>
@@ -557,7 +588,7 @@
     else { const p = reg(r.app); if (p.kind === "linked") linkedApp(p, r.tab); else if (p.id === "licenses") licensesApp(p, r.tab); else if (p.id === "dispatch") dispatchApp(p, r.tab); else safetyApp(p); }
     $("#side").classList.remove("open"); $("#menuBtn").setAttribute("aria-expanded", "false");
   }
-  let lastApp = null;
+  let lastApp = parse().app;
   window.addEventListener("hashchange", () => { const a = parse().app; if (a !== lastApp) { ui.dsF = ""; ui.dsQ = ""; ui.df = { dims: {}, state: "", from: "", to: "" }; lastApp = a; } render(); view.focus({ preventScroll: true }); window.scrollTo(0, 0); });
 
   /* ---------- الأحداث ---------- */
@@ -567,7 +598,7 @@
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
   document.addEventListener("click", async (ev) => {
-    const t = ev.target.closest("[data-logout],[data-dsprint],[data-dspng],[data-edcprint],[data-ddst],[data-ddexp],[data-hper],[data-dexp],[data-dlexp],[data-lexp],[data-dfreset],[data-lfreset],[data-licper],#syncNow,[data-dsf],[data-tpl],[data-dscsv],[data-dsclear],[data-dsparse],#dsCommit,#dsCancel,[data-go],[data-licf],[data-csv],[data-theme],#licCommit,#licCancel,#cardCommit,#cardCancel,#genSummary,#settingsBtn,#menuBtn");
+    const t = ev.target.closest("[data-pkcls],[data-logout],[data-dsprint],[data-dspng],[data-edcprint],[data-ddst],[data-ddexp],[data-hper],[data-dexp],[data-dlexp],[data-lexp],[data-dfreset],[data-lfreset],[data-licper],#syncNow,[data-dsf],[data-tpl],[data-dscsv],[data-dsclear],[data-dsparse],#dsCommit,#dsCancel,[data-go],[data-licf],[data-csv],[data-theme],#licCommit,#licCancel,#cardCommit,#cardCancel,#genSummary,#settingsBtn,#menuBtn");
     if (!t) return;
     if (t.dataset.go) { location.hash = t.dataset.go; return; }
     if (t.id === "menuBtn") { const o = $("#side").classList.toggle("open"); t.setAttribute("aria-expanded", String(o)); return; }
@@ -598,6 +629,7 @@
         rows: list.map((r) => [r.id, r.wo, r.loc, r.eng, U.dmy(r.end), r.st, r.clsName, r.closed ? "مغلقة" : r.over > 0 ? "متجاوزة" : "سارية", r.closed ? "" : r.over, r.why || "", r.act]) });
       return;
     }
+    if (t.dataset.pkcls) { ev.preventDefault(); ui.df = { dims: {}, state: "", from: "", to: "" }; ui.dsQ = ""; ui.dsF = t.dataset.pkcls; location.hash = "#/app/projects/all"; return; }
     if (t.dataset.dfreset !== undefined) { ui.df = { dims: {}, state: "", from: "", to: "" }; ui.dsF = ""; ui.dsQ = ""; render(); return; }
     if (t.dataset.lfreset !== undefined) { ui.lf = { eng: "", state: "", from: "", to: "" }; ui.licF = ""; ui.licQ = ""; render(); return; }
     if (t.dataset.licper !== undefined) { ui.licPer = +t.dataset.licper; ui.licF = ""; render(); return; }

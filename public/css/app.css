@@ -320,3 +320,24 @@ body.auth-mode .shell, body.auth-mode .drawer, body.auth-mode .scrim { display: 
 table.perm td, table.perm th { text-align: center; }
 table.perm td:first-child, table.perm th:first-child { text-align: start; }
 table.perm input { width: 18px; height: 18px; accent-color: var(--ink); }
+
+/* المؤشرات الرئيسية — منصة مستهدف الإنشاءات */
+.pk-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;margin-bottom:12px}
+.pk-head h2{margin:0}.pk-head span{color:var(--muted,#56686D);font-size:14px}
+.pk-grid{display:grid;gap:14px;margin-bottom:14px}
+.pk-grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.pk-grid.four{grid-template-columns:repeat(4,minmax(0,1fr))}
+.pk{position:relative;display:flex;flex-direction:column;gap:6px;height:100%;background:var(--card,#fff);border:1px solid var(--line,#D3DAD7);border-top:5px solid var(--c);border-radius:14px;padding:16px 18px 14px;box-sizing:border-box}
+.pk-t{font-size:14px;color:var(--muted,#56686D)}
+.pk-v{font-size:34px;line-height:1.15;font-weight:800;color:var(--ink,#13262F);font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:6px}
+.pk.big .pk-v{font-size:44px}
+.pk-v small{font-size:18px;font-weight:600;color:var(--muted,#56686D)}
+.pk-s{font-size:13px;color:var(--muted,#56686D);line-height:1.6;flex:1}
+.pk-bar{display:block;height:8px;border-radius:99px;background:color-mix(in srgb,var(--c) 14%,transparent);overflow:hidden;margin-top:4px}
+.pk-bar>i{display:block;height:100%;background:var(--c);border-radius:99px;min-width:8px}
+.pk-link{text-decoration:none;color:inherit;display:block}
+.pk-link:hover .pk{box-shadow:0 6px 18px rgba(0,0,0,.08);transform:translateY(-1px)}
+.pk-link:focus-visible .pk{outline:3px solid var(--c);outline-offset:2px}
+.pk{transition:box-shadow .15s,transform .15s}
+@media (max-width:1100px){.pk-grid.four{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:760px){.pk-grid.three,.pk-grid.four{grid-template-columns:1fr}.pk.big .pk-v{font-size:36px}}
