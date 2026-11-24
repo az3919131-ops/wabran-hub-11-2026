@@ -277,3 +277,21 @@ td.wrap { min-width: 240px; max-width: 520px; }
   body.print-sheet .dsheet { border: 0; margin: 0; padding: 0; }
   @page { size: A4 landscape; margin: 8mm; }
 }
+
+/* زر الرجوع للرئيسية في كل منصة */
+.back-home { margin-bottom: 8px; padding: 4px 12px; font-size: 13px; }
+.open-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* عرض المنصة كاملة داخل إطار الوبران */
+.go-bar { position: fixed; inset-inline: 0; top: 0; z-index: 60; height: 52px; display: flex; align-items: center; gap: 12px; padding: 0 14px; background: var(--ink); color: var(--on-ink); box-shadow: 0 2px 10px rgba(0,0,0,.2); }
+.go-bar b { font: 700 15px var(--f-head); white-space: nowrap; }
+.go-bar .go-sep { flex: 1; }
+.go-bar a { color: var(--on-ink); text-decoration: none; white-space: nowrap; font-size: 14px; }
+.go-bar .go-home { background: var(--volt); color: #13262F; font-weight: 700; border-radius: 99px; padding: 6px 14px; }
+.go-bar .go-link { border: 1px solid var(--ink-2); border-radius: 8px; padding: 5px 10px; }
+.go-bar select { background: var(--ink-2); color: var(--on-ink); border: 1px solid var(--ink-2); border-radius: 8px; padding: 5px 8px; max-width: 260px; }
+body.go-mode .side, body.go-mode .top, body.go-mode .sign { display: none !important; }
+body.go-mode .shell { display: block; }
+body.go-mode .view { padding: 0; max-width: none; }
+.go-frame { position: fixed; top: 52px; inset-inline: 0; bottom: 0; width: 100%; height: calc(100vh - 52px); border: 0; background: #fff; }
+@media (max-width: 760px) { .go-bar b, .go-bar .go-link:first-of-type { display: none; } .go-bar select { max-width: 150px; } }

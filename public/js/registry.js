@@ -18,6 +18,7 @@
       purpose: "مستهدف الإنشاءات: موقف أوامر عمل المشاريع وحالة الإغلاق",
       kind: "linked",
       url: "https://mainoffice-wo-report.netlify.app/",
+      noFrame: true, // المنصة تمنع العرض داخل مواقع أخرى (X-Frame-Options: DENY)
       fields: [
         { key: "total", label: "إجمالي أوامر العمل", better: "up" },
         { key: "closed", label: "أوامر مغلقة", better: "up" },

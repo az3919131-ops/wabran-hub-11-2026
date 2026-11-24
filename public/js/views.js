@@ -112,13 +112,36 @@
   }
 
   /* ---------- رأس التطبيق والتبويبات ---------- */
+  const BACK = `<a class="btn back-home" href="#/" aria-label="رجوع للصفحة الرئيسية">→ الرئيسية</a>`;
+  // فتح المنصة الأصلية داخل إطار منصة الوبران (شريط علوي برجوع للرئيسية) أو مستقلة
+  const openBtns = (p) => `<span class="open-btns"><a class="btn pri" href="#/go/${p.id}">فتح المنصة كاملة</a><a class="btn" href="${esc(p.url)}" target="_blank" rel="noopener">فتح مستقل</a></span>`;
+
+  /* ---------- عرض المنصة كاملة داخل إطار الوبران: شريط علوي ثابت فيه الرجوع والتنقل ---------- */
+  function goPage(p) {
+    document.body.classList.add("go-mode");
+    const others = REGISTRY.filter((x) => x.url);
+    document.getElementById("goBar") && document.getElementById("goBar").remove();
+    const bar = document.createElement("div");
+    bar.id = "goBar"; bar.className = "go-bar"; bar.setAttribute("dir", "rtl");
+    bar.innerHTML = `<a class="go-home" href="#/">→ الصفحة الرئيسية</a><b>منصة الوبران · نجران</b><span class="go-sep"></span>
+      <a class="go-link" href="${link(p.id)}">تحليل ${esc(p.short)} في المنصة</a>
+      <select id="goSel" aria-label="التنقل بين المنصات">${others.map((x) => `<option value="${x.id}" ${x.id === p.id ? "selected" : ""}>${esc(x.name)}</option>`).join("")}</select>
+      <a class="go-link" href="${esc(p.url)}" target="_blank" rel="noopener">فتح مستقل ↗</a>`;
+    document.body.appendChild(bar);
+    view.innerHTML = p.noFrame
+      ? `<div class="panel empty" style="margin-top:70px"><h3>${esc(p.name)} لا تسمح بالعرض داخل منصة أخرى</h3><p>المنصة الأصلية مضبوطة لمنع العرض داخل المواقع الأخرى، فتُفتح في تبويب مستقل. ارجع للرئيسية من هذا الشريط أو من زر الرجوع في المتصفح.</p><a class="btn pri" href="${esc(p.url)}" target="_blank" rel="noopener">فتح ${esc(p.short)} في تبويب جديد</a></div>`
+      : `<iframe class="go-frame" src="${esc(p.url)}" title="${esc(p.name)}" referrerpolicy="no-referrer"></iframe>`;
+  }
+
   function appShell(p, tabs, tab, body) {
-    return `<div class="app-head"><div><h1>${esc(p.name)}</h1><p>${esc(p.purpose)}</p></div>
-      ${p.url ? `<a class="btn" href="${esc(p.url)}" target="_blank" rel="noopener">افتح المنصة في نافذة جديدة</a>` : ""}</div>
+    return `<div class="app-head"><div>${BACK}<h1>${esc(p.name)}</h1><p>${esc(p.purpose)}</p></div>
+      ${p.url ? openBtns(p) : ""}</div>
       <div class="tabs" role="tablist">${tabs.map((t) => `<button role="tab" type="button" data-go="${link(p.id, t[0])}" aria-selected="${t[0] === tab}">${t[1]}${t[2] != null ? ` <span class="count num">${t[2]}</span>` : ""}</button>`).join("")}</div>
       <div role="tabpanel">${body}</div>`;
   }
   function frame(url, label) {
+    const rp = REGISTRY.find((x) => x.url === url);
+    if (rp && rp.noFrame) return `<div class="panel empty"><h3>${esc(rp.name)} تمنع العرض داخل منصة أخرى</h3><p>المنصة الأصلية مضبوطة لمنع عرضها داخل المواقع الأخرى، فتُفتح في تبويب مستقل.</p><a class="btn pri" href="${esc(url)}" target="_blank" rel="noopener">فتح المنصة الأصلية</a></div>`;
     return `<div class="frame-wrap"><div class="frame-bar"><span>${esc(label)} معروضة من مصدرها كما هي. إن ظهرت فارغة فالمنصة تمنع العرض داخل صفحات أخرى.</span><a class="btn sm" href="${esc(url)}" target="_blank" rel="noopener">فتح مستقل</a></div>
       <iframe src="${esc(url)}" title="${esc(label)}" loading="lazy" referrerpolicy="no-referrer"></iframe></div>`;
   }
@@ -392,8 +415,8 @@
   // تطبيق بطاقات السلامة نفسه المنشور مستقلاً على najran-safety-cards.netlify.app — يُركّب هنا داخل البوابة
   let saInst = null;
   function safetyApp(p) {
-    view.innerHTML = `<div class="app-head"><div><h1>${esc(p.name)}</h1><p>${esc(p.purpose)} · التطبيق نفسه يعمل داخل البوابة وعلى رابطه المستقل، والبيانات واحدة.</p></div>
-      <a class="btn" href="${esc(p.url)}" target="_blank" rel="noopener">افتح المنصة في نافذة جديدة</a></div><div id="saMount" style="margin-top:18px"></div>`;
+    view.innerHTML = `<div class="app-head"><div>${BACK}<h1>${esc(p.name)}</h1><p>${esc(p.purpose)} · التطبيق نفسه يعمل داخل البوابة وعلى رابطه المستقل، والبيانات واحدة.</p></div>
+      ${openBtns(p)}</div><div id="saMount" style="margin-top:18px"></div>`;
     saInst = SafetyApp.mount($("#saMount"), { api: "/api/data", seed: S.cards, onChange: (v) => { S.cards = v; U.ls.set("cards", v); U.ls.set("ctxAt", 0); HUB.pushContext(); E = HUB.evaluateAll(); } });
   }
   const CMAP = { emp: /^emp/, name: /name|الاسم/, iqama: /iqama|الإقامة|الاقامة/, badge: /badge|بطاقةالمقاول/, sap: /^sap/, exp: /expiry|انتهاء/, remark: /remark|ملاحظ/ };
@@ -504,13 +527,15 @@
   }
 
   /* ---------- الموجّه ---------- */
-  function parse() { const h = location.hash.replace(/^#\/?/, "").split("/"); if (h[0] === "app" && reg(h[1])) return { name: "app", app: h[1], tab: h[2] }; if (h[0] === "settings") return { name: "settings" }; return { name: "home" }; }
+  function parse() { const h = location.hash.replace(/^#\/?/, "").split("/"); if (h[0] === "app" && reg(h[1])) return { name: "app", app: h[1], tab: h[2] }; if (h[0] === "settings") return { name: "settings" }; if (h[0] === "go" && reg(h[1])) return { name: "go", app: h[1] }; return { name: "home" }; }
   function render() {
     E = HUB.evaluateAll();
     const r = parse();
     renderNav(r);
-    $("#crumb").textContent = r.name === "app" ? reg(r.app).name : r.name === "settings" ? "إعدادات البوابة" : "الصفحة الرئيسية";
-    if (r.name === "home") home();
+    $("#crumb").textContent = r.name === "app" || r.name === "go" ? reg(r.app).name : r.name === "settings" ? "إعدادات البوابة" : "الصفحة الرئيسية";
+    if (r.name !== "go") { document.body.classList.remove("go-mode"); const gb = document.getElementById("goBar"); if (gb) gb.remove(); }
+    if (r.name === "go") goPage(reg(r.app));
+    else if (r.name === "home") home();
     else if (r.name === "settings") settings();
     else { const p = reg(r.app); if (p.kind === "linked") linkedApp(p, r.tab); else if (p.id === "licenses") licensesApp(p, r.tab); else if (p.id === "dispatch") dispatchApp(p, r.tab); else safetyApp(p); }
     $("#side").classList.remove("open"); $("#menuBtn").setAttribute("aria-expanded", "false");
@@ -619,6 +644,7 @@
   document.addEventListener("change", (ev) => {
     const tg = ev.target;
     if (tg.dataset && tg.dataset.dfdim) { ui.df.dims[tg.dataset.dfdim] = tg.value; render(); return; }
+    if (tg.id === "goSel") { location.hash = "#/go/" + tg.value; return; }
     if (tg.id === "dpDate") { ui.dpDate = tg.value; render(); return; }
     if (tg.id === "ddDate") { ui.ddDate = tg.value; ui.ddSt = ""; render(); return; }
     if (tg.id === "hpFrom" || tg.id === "hpTo") { const hp = U.ls.get(HP_KEY) || { per: "custom" }; hp.per = "custom"; hp[tg.id === "hpFrom" ? "from" : "to"] = tg.value; U.ls.set(HP_KEY, hp); render(); return; }
