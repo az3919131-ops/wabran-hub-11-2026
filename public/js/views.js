@@ -60,8 +60,8 @@
           <p class="sub">${sub}</p>
           <div class="acts"><button class="btn pri" type="button" data-ask="اكتب ملخص اليوم للإدارة العليا">ملخص اليوم من المساعد</button><a class="btn" href="#gaps">نواقص البيانات (${E.gaps.length})</a></div>
         </div>
-        <div class="tower" aria-label="برج الفرع">
-          <h2>برج الفرع <span class="num">${E.overall ?? "—"}%</span></h2>
+        <div class="tower" aria-label="تحليل أداء الفرع">
+          <h2>تحليل أداء الفرع <span class="num">${E.overall ?? "—"}%</span></h2>
           <p>كل طبقة منصة؛ طولها نسبة سلامتها ولونها حالتها. الطبقة المخططة بلا بيانات.</p>
           <div class="tiers">${tiers}</div><div class="base"></div>
         </div>
