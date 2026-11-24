@@ -9,7 +9,7 @@
   const reg = (id) => REGISTRY.find((p) => p.id === id);
   const link = (app, tab) => `#/app/${app}${tab ? "/" + tab : ""}`;
   let E = null;
-  const ui = { licPer: 0, licF: "", licQ: "", cardQ: "", pendLic: null, pendCards: null, dsF: "", dsQ: "", pendDs: null };
+  const ui = { df: { dims: {}, state: "", from: "", to: "" }, lf: { eng: "", state: "", from: "", to: "" }, licPer: 0, licF: "", licQ: "", cardQ: "", pendLic: null, pendCards: null, dsF: "", dsQ: "", pendDs: null };
 
   /* ---------- القائمة الجانبية ---------- */
   function renderNav(route) {
@@ -116,12 +116,60 @@
     return `<div class="tbl"><table><thead><tr>${keys.map((k) => `<th>${esc(s.cols[k].label)}</th>`).join("")}<th>التصنيف</th><th>${s.dueKey ? "التأخر (يوم)" : "العمر (يوم)"}</th></tr></thead><tbody>
       ${list.slice(0, 500).map((r) => r._n ? `<tr><td colspan="${keys.length + 2}" style="color:var(--muted)">مجموعة منتهية: ${r._n} ${esc(s.unit)} — ${esc(s.title(r))} ${r.year || ""} — ${money(r[s.amountKey])} ريال</td></tr>` : `<tr>${keys.map((k) => `<td${s.cols[k].type ? ' class="num"' : ""}>${cell(r, k)}</td>`).join("")}<td><span class="pill ${KP[r.kind]}">${esc(s.classes[r.cls].label)}</span></td><td class="num">${r.lateBy ? `<span class="pill p-bad">${s.dueKey ? r.lateBy : r.age}</span>` : r.age != null && !r._n ? r.age : "—"}</td></tr>`).join("") || `<tr><td colspan="${keys.length + 2}" class="empty">لا سجلات مطابقة.</td></tr>`}</tbody></table></div>${list.length > 500 ? `<p class="meta">يُعرض أول 500 من ${list.length}. استخدم البحث للتضييق.</p>` : ""}`;
   }
+  /* ---------- تصدير أي تقرير مفلتر: Excel / CSV / طباعة ---------- */
+  const SIGNTXT = "Project Manager | Eng. Ahmed Zahran";
+  function exportReport(kind, o) {
+    const today = U.dmy(U.iso(U.today())), base = o.file + "-" + U.iso(U.today());
+    const dlb = (name, blob) => { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000); };
+    if (kind === "xlsx") {
+      if (typeof XLSX === "undefined") { alert("مكتبة Excel لم تُحمّل بعد. تحقق من الاتصال."); return; }
+      const aoa = [[o.title + " — الوبران نجران"], ["التقرير: " + o.desc], ["تاريخ التقرير: " + today + " · عدد السجلات: " + o.count], [], o.head].concat(o.rows).concat([[], [SIGNTXT]]);
+      const ws = XLSX.utils.aoa_to_sheet(aoa); ws["!cols"] = o.head.map((h, i) => ({ wch: Math.min(60, Math.max(10, ...[h].concat(o.rows.slice(0, 200).map((r) => r[i])).map((v) => String(v ?? "").length + 2))) }));
+      const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "التقرير"); wb.Workbook = { Views: [{ RTL: true }] };
+      dlb(base + ".xlsx", new Blob([XLSX.write(wb, { bookType: "xlsx", type: "array" })], { type: "application/octet-stream" }));
+    } else if (kind === "csv") {
+      const q = (v) => '"' + String(v ?? "").replace(/"/g, '""') + '"';
+      dlb(base + ".csv", new Blob(["\ufeff" + [["التقرير: " + o.desc], o.head].concat(o.rows).concat([[], [SIGNTXT]]).map((r) => r.map(q).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" }));
+    } else {
+      const w = window.open("", "_blank"); if (!w) { alert("اسمح بالنوافذ المنبثقة للطباعة."); return; }
+      w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>${esc(o.title)}</title><style>body{font-family:Tahoma,Arial,sans-serif;margin:22px;color:#13262F}h1{font-size:19px;margin:0}p{margin:4px 0 12px;color:#555}table{border-collapse:collapse;width:100%;font-size:11.5px}th,td{border:1px solid #ccc;padding:4px 6px;text-align:right;vertical-align:top}th{background:#13262F;color:#fff}.sign{margin-top:22px;direction:ltr;text-align:center;font-weight:bold}</style></head><body><h1>${esc(o.title)} — الوبران نجران</h1><p>${esc(o.desc)} · ${o.count} سجل · ${today}</p><table><thead><tr>${o.head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${o.rows.map((r) => `<tr>${r.map((v) => `<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table><div class="sign">${SIGNTXT}</div><script>window.onload=()=>window.print()<\/script></body></html>`);
+      w.document.close();
+    }
+  }
+  const expBar = (desc, n, attr) => `<div class="exp-bar"><span class="hint" style="margin:0">${esc(desc)} — <b>${U.fmt(n)}</b> سجل</span><span class="exp-btns"><button class="btn pri sm" type="button" ${attr}="xlsx">تصدير Excel</button><button class="btn sm" type="button" ${attr}="csv">تصدير CSV</button><button class="btn sm" type="button" ${attr}="print">طباعة / PDF</button></span></div>`;
+
+  /* ---------- فلاتر المنصات الخمس ---------- */
+  function dsFiltered(A) {
+    const f = ui.df, q = ui.dsQ.trim().toLowerCase(), dk = A.s.dateKey;
+    return A.rows.filter((r) => (!ui.dsF || r.cls === ui.dsF)
+      && Object.entries(f.dims).every(([k, v]) => !v || (r[k] || "غير محدد") === v)
+      && (!f.state || (f.state === "late" ? r.lateBy > 0 : f.state === "open" ? r.kind !== "done" && r.kind !== "cancel" : f.state === "done" ? r.kind === "done" : f.state === "ontime" ? r.kind !== "done" && !(r.lateBy > 0) : true))
+      && (!f.from || (r[dk] && r[dk] >= f.from)) && (!f.to || (r[dk] && r[dk] <= f.to))
+      && (!q || Object.values(r).join(" ").toLowerCase().includes(q)));
+  }
+  function dsDesc(A) {
+    const f = ui.df, s = A.s, p = [];
+    if (ui.dsF) p.push(s.classes[ui.dsF].label);
+    Object.entries(f.dims).forEach(([k, v]) => { if (v) p.push((s.dims.find((d) => d[0] === k) || [0, k])[1] + ": " + v); });
+    if (f.state) p.push({ late: "المتأخرة فقط", open: "المفتوحة فقط", done: "المنجزة فقط", ontime: "المفتوحة ضمن المدة" }[f.state]);
+    if (f.from) p.push(s.cols[s.dateKey].label + " من " + U.dmy(f.from)); if (f.to) p.push("حتى " + U.dmy(f.to));
+    if (ui.dsQ.trim()) p.push("بحث: " + ui.dsQ.trim());
+    return p.length ? p.join(" · ") : "كل السجلات";
+  }
+  function dsExport(kind, p, A, list, desc) {
+    const s = A.s, keys = Object.keys(s.cols).filter((k) => list.some((r) => r[k] != null && r[k] !== ""));
+    const val = (r, k) => { const t = s.cols[k].type, v = r[k]; return t === "date" ? (v ? U.dmy(v) : "") : t === "num" ? (v == null ? "" : Math.round(v * 100) / 100) : v ?? ""; };
+    const head = keys.map((k) => s.cols[k].label).concat(["التصنيف", s.dueKey ? "التأخر (يوم)" : "العمر (يوم)", "عدد الأوامر"]);
+    const rows = list.map((r) => keys.map((k) => val(r, k)).concat([s.classes[r.cls].label, r._n ? "" : (s.dueKey ? r.lateBy || "" : r.age ?? ""), r._n || 1]));
+    exportReport(kind, { title: p.name, desc, head, rows, count: A.W(list), file: p.id });
+  }
+
   function linkedApp(p, tab) {
     const ds = S.ds[p.id];
     const A = ds ? DS.analyze(p.id, ds) : null;
     const ev = E.items.find((i) => i.id === p.id);
     tab = tab || (A ? "overview" : "data");
-    const tabs = [["overview", "الصورة العامة"], ["analysis", "التحليل"]].concat(p.id === "schedule" ? [] : [["late", "المتأخرة", A ? A.W(A.late) : null]]).concat([ ["all", p.id === "schedule" ? "أيام العمل" : "كل السجلات", A ? A.W(A.rows) : null], ["data", "تحديث البيانات"], ["board", "المنصة الأصلية"]]);
+    const tabs = [["overview", "الصورة العامة"], ["analysis", "التحليل"]].concat(p.id === "schedule" ? [] : [["late", "المتأخرة", A ? A.W(A.late) : null]]).concat([ ["all", "التقارير والتصدير", A ? A.W(A.rows) : null], ["data", "تحديث البيانات"], ["board", "المنصة الأصلية"]]);
     let body = "";
     const needData = `<div class="panel empty"><h3>لم تُرفع بيانات ${esc(p.short)} بعد</h3><p>ارفع ملف Excel أو الصق الجدول من المنصة الأصلية لتظهر هنا اللوحة التحليلية، وتدخل المنصة في تقرير الفرع والمساعد.</p><button class="btn pri" data-go="${link(p.id, "data")}" type="button">تحديث البيانات</button></div>`;
     const stale = A && U.daysFrom(ds.asof) > 3 ? `<div class="note">آخر بيانات بتاريخ ${U.dmy(ds.asof)} (منذ ${U.days(U.daysFrom(ds.asof))}). ${DS.AUTO[p.id] ? "البوابة تسحب من المنصة الأصلية تلقائياً، والمنصة نفسها لم تُحدّث منذ ذلك التاريخ." : "ارفع آخر نسخة من «تحديث البيانات»."}</div>` : "";
@@ -159,12 +207,20 @@
     } else if (tab === "analysis") {
       body = stale + A.dims.map((d) => `<section class="section"><h2>حسب ${esc(d.label)}</h2><div class="tbl"><table><thead><tr><th>${esc(d.label)}</th><th>الإجمالي</th><th>منجز</th><th>مفتوح</th><th>متأخر</th><th>نسبة الإنجاز</th>${A.s.amountKey ? "<th>القيمة (ريال)</th>" : ""}</tr></thead><tbody>
         ${d.groups.map((g) => `<tr><td>${esc(g.name)}</td><td class="num">${g.total}</td><td class="num">${g.done}</td><td class="num">${g.total - g.done}</td><td class="num">${g.late ? `<span class="pill p-bad">${g.late}</span>` : 0}</td><td class="num">${Math.round((g.done / g.total) * 100)}%</td>${A.s.amountKey ? `<td class="num">${money(g.amt)}</td>` : ""}</tr>`).join("")}</tbody></table></div></section>`).join("") || `<div class="empty">لا توجد أعمدة تحليل في الملف (${A.s.dims.map((d) => d[1]).join("، ")}).</div>`;
-    } else if (tab === "late") body = stale + (A.late.length ? recTable(A, A.late) : `<div class="panel empty"><h3>لا متأخرات</h3><p>كل السجلات المفتوحة ضمن موعدها.</p></div>`);
+    } else if (tab === "late") body = stale + (A.late.length ? `<div class="panel">${expBar("المتأخرة: " + (A.s.slaText || "تجاوزت موعدها"), A.W(A.late), "data-dlexp")}</div>` + recTable(A, A.late) : `<div class="panel empty"><h3>لا متأخرات</h3><p>كل السجلات المفتوحة ضمن موعدها.</p></div>`);
     else {
-      const q = ui.dsQ.trim().toLowerCase();
-      const list = A.rows.filter((r) => (!ui.dsF || r.cls === ui.dsF) && (!q || Object.values(r).join(" ").toLowerCase().includes(q)));
-      body = `<div class="chips"><button class="chip" data-dsf="" aria-pressed="${!ui.dsF}" type="button">الكل ${A.rows.length}</button>${A.byCls.map((c) => `<button class="chip" style="--c:${KCOL[c.kind]}" data-dsf="${c.k}" aria-pressed="${ui.dsF === c.k}" type="button"><i></i>${esc(c.label)} ${c.n}</button>`).join("")}</div>
-        <label class="f" style="max-width:340px;margin-bottom:12px">بحث<input type="search" id="dsQ" value="${esc(ui.dsQ)}" placeholder="أي رقم أو اسم أو موقع"></label>` + recTable(A, list);
+      const list = dsFiltered(A), s = A.s, f = ui.df;
+      const opt = (v, cur, l) => `<option value="${esc(v)}" ${v === cur ? "selected" : ""}>${esc(l)}</option>`;
+      body = `<div class="panel">
+        <div class="chips"><button class="chip" data-dsf="" aria-pressed="${!ui.dsF}" type="button">الكل ${U.fmt(A.W(A.rows))}</button>${A.byCls.map((c) => `<button class="chip" style="--c:${KCOL[c.kind]}" data-dsf="${c.k}" aria-pressed="${ui.dsF === c.k}" type="button"><i></i>${esc(c.label)} ${U.fmt(c.n)}</button>`).join("")}</div>
+        <div class="form">
+          <label class="f">بحث<input type="search" id="dsQ" value="${esc(ui.dsQ)}" placeholder="أي رقم أو اسم أو موقع"></label>
+          ${A.dims.map((d) => `<label class="f">${esc(d.label)}<select data-dfdim="${d.k}">${opt("", f.dims[d.k] || "", "الكل")}${d.groups.slice(0, 200).map((g) => opt(g.name, f.dims[d.k] || "", g.name + " (" + g.total + ")")).join("")}</select></label>`).join("")}
+          ${p.id === "schedule" ? "" : `<label class="f">الموقف<select id="dfState">${[["", "الكل"], ["open", "المفتوحة"], ["late", "المتأخرة"], ["ontime", "المفتوحة ضمن المدة"], ["done", "المنجزة"]].map(([v, l]) => opt(v, f.state, l)).join("")}</select></label>`}
+          <label class="f">${esc(s.cols[s.dateKey].label)} من<input type="date" id="dfFrom" value="${esc(f.from)}"></label>
+          <label class="f">حتى<input type="date" id="dfTo" value="${esc(f.to)}"></label>
+          <div><button class="btn sm" type="button" data-dfreset>مسح الفلاتر</button></div>
+        </div>${expBar(dsDesc(A), A.W(list), "data-dexp")}</div>` + recTable(A, list);
     }
     view.innerHTML = appShell(p, tabs, tab, body);
     if (tab === "data" && ui.pendDs && ui.pendDs.id === p.id) renderDsPend();
@@ -220,11 +276,22 @@
         <div class="panel"><h3>ترتيب التجاوز</h3><p class="hint">أيام منذ انتهاء المدة للرخص المفتوحة.</p><div class="bars">${over.map((r) => `<div class="bar" style="--c:${LCOL[r.cls]}"><span>${esc(r.loc)} <span class="ltr num" style="color:var(--muted)">${r.id.slice(-5)}</span></span><span class="tr"><span class="fl" style="width:${(r.over / mx) * 100}%"></span></span><span class="v num">${r.over}</span></div>`).join("") || '<p class="hint">لا رخص متجاوزة.</p>'}</div></div></div>`;
     } else if (tab === "list") {
       const cnt = {}; rows.forEach((r) => (cnt[r.cls] = (cnt[r.cls] || 0) + 1));
-      const q = ui.licQ.trim();
-      const list = rows.filter((r) => (!ui.licF || r.cls === ui.licF) && (!q || (r.id + r.wo + r.loc + r.eng + r.st).includes(q)))
+      const q = ui.licQ.trim(), lf = ui.lf;
+      const list = rows.filter((r) => (!ui.licF || r.cls === ui.licF) && (!q || (r.id + r.wo + r.loc + r.eng + r.st).includes(q))
+          && (!lf.eng || r.eng === lf.eng) && (!lf.from || r.end >= lf.from) && (!lf.to || r.end <= lf.to)
+          && (!lf.state || (lf.state === "open" ? !r.closed : lf.state === "closed" ? r.closed : lf.state === "over" ? !r.closed && r.over > 0 : lf.state === "soon" ? !r.closed && r.over <= 0 && r.over >= -30 : true)))
         .sort((a, b) => ((HUB.LIC_CLS[a.cls] || {}).order || 99) - ((HUB.LIC_CLS[b.cls] || {}).order || 99) || (b.over || 0) - (a.over || 0));
+      ui.licList = list;
+      ui.licDesc = [ui.licPer ? "آخر " + (ui.licPer === 1 ? "شهر" : ui.licPer === 2 ? "شهرين" : "3 أشهر") : "", ui.licF ? (HUB.LIC_CLS[ui.licF] || {}).name : "", lf.eng ? "المهندس: " + lf.eng : "", lf.state ? { open: "المفتوحة", over: "المتجاوزة", soon: "تنتهي خلال 30 يوماً", closed: "المغلقة" }[lf.state] : "", lf.from ? "انتهاء من " + U.dmy(lf.from) : "", lf.to ? "حتى " + U.dmy(lf.to) : "", q ? "بحث: " + q : ""].filter(Boolean).join(" · ") || "كل الرخص";
       body = stale + perBar + `<div class="chips"><button class="chip" data-licf="" aria-pressed="${!ui.licF}" type="button">الكل ${rows.length}</button>${Object.keys(cnt).map((c) => `<button class="chip" style="--c:${LCOL[c]}" data-licf="${c}" aria-pressed="${ui.licF === c}" type="button"><i></i>${esc((HUB.LIC_CLS[c] || {}).short || "غير مصنفة")} ${cnt[c]}</button>`).join("")}</div>
-        <label class="f" style="max-width:340px;margin-bottom:12px">بحث<input type="search" id="licQ" value="${esc(ui.licQ)}" placeholder="رقم الرخصة، أمر العمل، الموقع، المهندس"></label>
+        <div class="panel" style="margin-bottom:14px"><div class="form">
+          <label class="f">بحث<input type="search" id="licQ" value="${esc(ui.licQ)}" placeholder="رقم الرخصة، أمر العمل، الموقع، المهندس"></label>
+          <label class="f">المهندس<select id="lfEng"><option value="">الكل</option>${[...new Set(rows.map((r) => r.eng).filter(Boolean))].map((e) => `<option ${e === lf.eng ? "selected" : ""}>${esc(e)}</option>`).join("")}</select></label>
+          <label class="f">الموقف<select id="lfState">${[["", "الكل"], ["open", "المفتوحة"], ["over", "المتجاوزة"], ["soon", "تنتهي خلال 30 يوماً"], ["closed", "المغلقة"]].map(([v, l]) => `<option value="${v}" ${v === lf.state ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+          <label class="f">الانتهاء من<input type="date" id="lfFrom" value="${esc(lf.from)}"></label>
+          <label class="f">حتى<input type="date" id="lfTo" value="${esc(lf.to)}"></label>
+          <div><button class="btn sm" type="button" data-lfreset>مسح الفلاتر</button></div>
+        </div>${expBar(ui.licDesc, list.length, "data-lexp")}</div>
         <div class="tbl"><table><thead><tr><th>الرخصة</th><th>الموقع</th><th>المهندس</th><th>الانتهاء</th><th>الحالة</th><th>سبب التأخر</th><th>الإجراء المطلوب</th></tr></thead><tbody>
         ${list.map((r) => `<tr><td class="ltr num">${esc(r.id)}<br><small style="color:var(--muted)">أمر ${esc(r.wo)}</small></td><td>${esc(r.loc)}</td><td>${esc(r.eng)}</td><td class="num">${U.dmy(r.end)}</td>
           <td>${r.closed ? '<span class="pill p-ok">مغلقة</span>' : r.over > 0 ? `<span class="pill p-bad">متجاوزة ${r.over} يوم</span>` : `<span class="pill p-warn">سارية ${-r.over} يوم</span>`}<br><small style="color:var(--muted)">${esc(r.clsName)}</small></td>
@@ -344,7 +411,7 @@
     $("#side").classList.remove("open"); $("#menuBtn").setAttribute("aria-expanded", "false");
   }
   let lastApp = null;
-  window.addEventListener("hashchange", () => { const a = parse().app; if (a !== lastApp) { ui.dsF = ""; ui.dsQ = ""; lastApp = a; } render(); view.focus({ preventScroll: true }); window.scrollTo(0, 0); });
+  window.addEventListener("hashchange", () => { const a = parse().app; if (a !== lastApp) { ui.dsF = ""; ui.dsQ = ""; ui.df = { dims: {}, state: "", from: "", to: "" }; lastApp = a; } render(); view.focus({ preventScroll: true }); window.scrollTo(0, 0); });
 
   /* ---------- الأحداث ---------- */
   function download(name, rows) {
@@ -353,12 +420,27 @@
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
   document.addEventListener("click", async (ev) => {
-    const t = ev.target.closest("[data-licper],#syncNow,[data-dsf],[data-tpl],[data-dscsv],[data-dsclear],[data-dsparse],#dsCommit,#dsCancel,[data-go],[data-licf],[data-csv],[data-theme],#licCommit,#licCancel,#cardCommit,#cardCancel,#genSummary,#settingsBtn,#menuBtn");
+    const t = ev.target.closest("[data-dexp],[data-dlexp],[data-lexp],[data-dfreset],[data-lfreset],[data-licper],#syncNow,[data-dsf],[data-tpl],[data-dscsv],[data-dsclear],[data-dsparse],#dsCommit,#dsCancel,[data-go],[data-licf],[data-csv],[data-theme],#licCommit,#licCancel,#cardCommit,#cardCancel,#genSummary,#settingsBtn,#menuBtn");
     if (!t) return;
     if (t.dataset.go) { location.hash = t.dataset.go; return; }
     if (t.id === "menuBtn") { const o = $("#side").classList.toggle("open"); t.setAttribute("aria-expanded", String(o)); return; }
     if (t.id === "settingsBtn") { location.hash = "#/settings"; return; }
     if (t.dataset.licf !== undefined) { ui.licF = t.dataset.licf; render(); return; }
+    if (t.dataset.dexp || t.dataset.dlexp) {
+      const p = reg(parse().app), A = DS.analyze(p.id, S.ds[p.id]);
+      if (t.dataset.dexp) dsExport(t.dataset.dexp, p, A, dsFiltered(A), dsDesc(A));
+      else dsExport(t.dataset.dlexp, p, A, A.late, "المتأخرة: " + (A.s.slaText || "تجاوزت موعدها"));
+      return;
+    }
+    if (t.dataset.lexp) {
+      const list = ui.licList || [];
+      exportReport(t.dataset.lexp, { title: "موقف الرخص", desc: ui.licDesc || "كل الرخص", count: list.length, file: "licenses",
+        head: ["رقم الرخصة", "أمر العمل", "الموقع", "المهندس", "تاريخ الانتهاء", "الموقف في الملف", "التصنيف", "الحالة", "التجاوز (يوم)", "سبب التأخر", "الإجراء المطلوب"],
+        rows: list.map((r) => [r.id, r.wo, r.loc, r.eng, U.dmy(r.end), r.st, r.clsName, r.closed ? "مغلقة" : r.over > 0 ? "متجاوزة" : "سارية", r.closed ? "" : r.over, r.why || "", r.act]) });
+      return;
+    }
+    if (t.dataset.dfreset !== undefined) { ui.df = { dims: {}, state: "", from: "", to: "" }; ui.dsF = ""; ui.dsQ = ""; render(); return; }
+    if (t.dataset.lfreset !== undefined) { ui.lf = { eng: "", state: "", from: "", to: "" }; ui.licF = ""; ui.licQ = ""; render(); return; }
     if (t.dataset.licper !== undefined) { ui.licPer = +t.dataset.licper; ui.licF = ""; render(); return; }
     if (t.id === "syncNow") {
       const m = $("#syncMsg"); t.disabled = true; m.className = "msg"; m.textContent = "جارٍ السحب من المنصات الأصلية…";
@@ -419,6 +501,10 @@
     if (ev.target.id === "cardQ") { ui.cardQ = ev.target.value; render(); const i = $("#cardQ"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
   });
   document.addEventListener("change", (ev) => {
+    const tg = ev.target;
+    if (tg.dataset && tg.dataset.dfdim) { ui.df.dims[tg.dataset.dfdim] = tg.value; render(); return; }
+    const map = { dfState: ["df", "state"], dfFrom: ["df", "from"], dfTo: ["df", "to"], lfEng: ["lf", "eng"], lfState: ["lf", "state"], lfFrom: ["lf", "from"], lfTo: ["lf", "to"] };
+    if (map[tg.id]) { ui[map[tg.id][0]][map[tg.id][1]] = tg.value; render(); return; }
     const f = ev.target.files && ev.target.files[0]; if (!f) return;
     const isLic = ev.target.id === "licFile", isCard = ev.target.id === "cardFile", isDs = ev.target.id === "dsFile"; if (!isLic && !isCard && !isDs) return;
     const m = $(isLic ? "#licMsg" : isCard ? "#cardMsg" : "#dsMsg"), dsId = ev.target.dataset.app;
