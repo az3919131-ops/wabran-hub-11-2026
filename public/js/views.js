@@ -109,9 +109,6 @@
       </section>
       <section class="section panel brief-bottom">
         <div class="brief">
-          <p class="when">موقف الفرع · ${U.longDate()} · ${esc(perTxt)}</p>
-          <p class="line">${line}</p>
-          <p class="sub">${sub}</p>
           <div class="acts"><button class="btn pri" type="button" data-ask="اكتب ملخص اليوم للإدارة العليا">ملخص اليوم من المساعد</button><a class="btn" href="#gaps">نواقص البيانات (${E.gaps.length})</a></div>
         </div>
       </section>`;
