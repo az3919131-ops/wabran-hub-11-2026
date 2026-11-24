@@ -69,7 +69,7 @@
   };
 
   /* ---------- الحالة ---------- */
-  const S = { snapshots: {}, licenses: null, cards: null, summary: null, ds: {}, dispatch: null, loaded: false };
+  const S = { snapshots: {}, licenses: SEED.licenses, cards: SEED.cards, summary: null, ds: {}, dispatch: null, loaded: false };
   const LINKED = () => REGISTRY.filter((p) => p.kind === "linked").map((p) => p.id);
 
   async function loadAll() {
