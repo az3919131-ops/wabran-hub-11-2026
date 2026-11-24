@@ -7,6 +7,11 @@
   const LV = { ok: "سليم", warn: "يحتاج متابعة", bad: "يحتاج قراراً", none: "بلا بيانات" };
   const LVC = { ok: "var(--ok)", warn: "var(--volt)", bad: "var(--bad)", none: "var(--none)" };
   const reg = (id) => REGISTRY.find((p) => p.id === id);
+  // صلاحيات المستخدم الحالي
+  const lvl = (id) => (HUB.user && HUB.user.access ? HUB.user.access[id] || "none" : "none");
+  const canEditP = (id) => lvl(id) === "edit";
+  const canExpP = (id) => lvl(id) === "edit" || lvl(id) === "export";
+  const hasCap = (c) => !!(HUB.user && HUB.user.caps && HUB.user.caps.includes(c));
   const link = (app, tab) => `#/app/${app}${tab ? "/" + tab : ""}`;
   let E = null;
   const ui = { dpDate: "", ddDate: "", ddSt: "", df: { dims: {}, state: "", from: "", to: "" }, lf: { eng: "", state: "", from: "", to: "" }, licPer: 0, licF: "", licQ: "", cardQ: "", pendLic: null, pendCards: null, dsF: "", dsQ: "", pendDs: null };
@@ -98,7 +103,7 @@
       <section class="section panel"><h3>ملخص الإدارة العليا اليومي</h3>
         <p class="hint">يكتبه المساعد الذكي تلقائياً كل صباح 8:10 بتوقيت الرياض من بيانات كل المنصات.</p>
         ${sm && sm.text ? `<p class="summary-text">${esc(sm.text)}</p><p class="meta">كُتب ${esc(new Date(sm.at).toLocaleString("ar-SA-u-nu-latn"))}</p>` : `<div class="empty"><h3>لم يُكتب ملخص اليوم بعد</h3><p>اطلبه الآن من المساعد، أو انتظر الملخص التلقائي صباح الغد.</p></div>`}
-        <div class="acts" style="margin-top:12px"><button class="btn" type="button" id="genSummary">اكتب الملخص الآن واحفظه</button></div>
+        ${hasCap("assistant") ? `<div class="acts" style="margin-top:12px"><button class="btn" type="button" id="genSummary">اكتب الملخص الآن واحفظه</button></div>` : ""}
         <p class="msg" id="sumMsg" role="status"></p>
       </section>
       <section class="section panel brief-bottom">
@@ -131,6 +136,11 @@
     view.innerHTML = p.noFrame
       ? `<div class="panel empty" style="margin-top:70px"><h3>${esc(p.name)} لا تسمح بالعرض داخل منصة أخرى</h3><p>المنصة الأصلية مضبوطة لمنع العرض داخل المواقع الأخرى، فتُفتح في تبويب مستقل. ارجع للرئيسية من هذا الشريط أو من زر الرجوع في المتصفح.</p><a class="btn pri" href="${esc(p.url)}" target="_blank" rel="noopener">فتح ${esc(p.short)} في تبويب جديد</a></div>`
       : `<iframe class="go-frame" src="${esc(p.url)}" title="${esc(p.name)}" referrerpolicy="no-referrer"></iframe>`;
+    // المنصات المستقلة المرتبطة بالدخول الموحد تطلب رمز الدخول من هنا، فيُرسل لنطاقها فقط
+    const origin = new URL(p.url).origin;
+    if (window.__goMsg) window.removeEventListener("message", window.__goMsg);
+    window.__goMsg = (e) => { if (e.origin === origin && e.data && e.data.type === "wabran-ready") { const f = document.querySelector(".go-frame"); if (f && f.contentWindow) f.contentWindow.postMessage({ type: "wabran-token", token: HUB.Auth.token }, origin); } };
+    window.addEventListener("message", window.__goMsg);
   }
 
   function appShell(p, tabs, tab, body) {
@@ -189,7 +199,7 @@
       w.document.close();
     }
   }
-  const expBar = (desc, n, attr) => `<div class="exp-bar"><span class="hint" style="margin:0">${esc(desc)} — <b>${U.fmt(n)}</b> سجل</span><span class="exp-btns"><button class="btn pri sm" type="button" ${attr}="xlsx">تصدير Excel</button><button class="btn sm" type="button" ${attr}="csv">تصدير CSV</button><button class="btn sm" type="button" ${attr}="print">طباعة / PDF</button></span></div>`;
+  const expBar = (desc, n, attr) => !canExpP(parse().app) ? `<div class="exp-bar"><span class="hint" style="margin:0">${esc(desc)} — <b>${U.fmt(n)}</b> سجل</span><span class="hint" style="margin:0">التصدير غير متاح لصلاحيتك (عرض فقط)</span></div>` : `<div class="exp-bar"><span class="hint" style="margin:0">${esc(desc)} — <b>${U.fmt(n)}</b> سجل</span><span class="exp-btns"><button class="btn pri sm" type="button" ${attr}="xlsx">تصدير Excel</button><button class="btn sm" type="button" ${attr}="csv">تصدير CSV</button><button class="btn sm" type="button" ${attr}="print">طباعة / PDF</button></span></div>`;
 
   /* ---------- فلاتر المنصات الخمس ---------- */
   function dsFiltered(A) {
@@ -221,8 +231,9 @@
     const ds = S.ds[p.id];
     const A = ds ? DS.analyze(p.id, ds) : null;
     const ev = E.items.find((i) => i.id === p.id);
-    tab = tab || (A ? "overview" : "data");
-    const tabs = [["overview", "الصورة العامة"], ["analysis", "التحليل"]].concat(p.id === "schedule" ? [] : [["late", "المتأخرة", A ? A.W(A.late) : null]]).concat([ ["all", "التقارير والتصدير", A ? A.W(A.rows) : null], ["data", "تحديث البيانات"], ["board", "المنصة الأصلية"]]);
+    tab = tab || (A ? "overview" : canEditP(p.id) ? "data" : "overview");
+    if (tab === "data" && !canEditP(p.id)) tab = "overview";
+    const tabs = [["overview", "الصورة العامة"], ["analysis", "التحليل"]].concat(p.id === "schedule" ? [] : [["late", "المتأخرة", A ? A.W(A.late) : null]]).concat([ ["all", "التقارير والتصدير", A ? A.W(A.rows) : null], ].concat(canEditP(p.id) ? [["data", "تحديث البيانات"]] : []).concat([["board", "المنصة الأصلية"]]));
     let body = "";
     const needData = `<div class="panel empty"><h3>لم تُرفع بيانات ${esc(p.short)} بعد</h3><p>ارفع ملف Excel أو الصق الجدول من المنصة الأصلية لتظهر هنا اللوحة التحليلية، وتدخل المنصة في تقرير الفرع والمساعد.</p><button class="btn pri" data-go="${link(p.id, "data")}" type="button">تحديث البيانات</button></div>`;
     const stale = A && U.daysFrom(ds.asof) > 3 ? `<div class="note">آخر بيانات بتاريخ ${U.dmy(ds.asof)} (منذ ${U.days(U.daysFrom(ds.asof))}). ${DS.AUTO[p.id] ? "البوابة تسحب من المنصة الأصلية تلقائياً، والمنصة نفسها لم تُحدّث منذ ذلك التاريخ." : "ارفع آخر نسخة من «تحديث البيانات»."}</div>` : "";
@@ -285,7 +296,7 @@
     return `<div class="panel"><h3>مصدر البيانات</h3><p class="hint">${esc(s.origin)}. ${auto ? "تُسحب تلقائياً من المنصة الأصلية كل 6 ساعات." : p.id === "assign" ? "منصة أوامر العمل تتطلب تسجيل الدخول، فحُمّلت بياناتها مرة واحدة من قاعدة بياناتها. لتحديثها ارفع ملفها هنا أو اطلب إعادة السحب." : ""}</p>
         ${s.note ? `<div class="note">${esc(s.note)}</div>` : ""}
         ${ds ? `<p class="meta">آخر بيانات: ${U.dmy(ds.asof)}${ds.syncedAt ? " · آخر مزامنة " + esc(new Date(ds.syncedAt).toLocaleString("ar-SA-u-nu-latn")) : ""} · ${U.fmt(A ? A.W(A.rows) : 0)} ${esc(s.unit)}</p>` : ""}
-        ${auto ? `<button class="btn pri" type="button" id="syncNow">مزامنة الآن من المنصات الأصلية</button><p class="msg" id="syncMsg" role="status"></p>` : ""}</div>
+        ${auto && hasCap("sync") ? `<button class="btn pri" type="button" id="syncNow">مزامنة الآن من المنصات الأصلية</button><p class="msg" id="syncMsg" role="status"></p>` : ""}</div>
       <div class="panel section"><h3>رفع بيانات ${esc(p.short)} يدوياً</h3><p class="hint">ملف Excel أو CSV مُصدّر من المنصة الأصلية، أو أي جدول يحتوي هذه الأعمدة (يكفي بعضها، والعناوين تُكتشف بالعربي أو الإنجليزي): ${Object.values(s.cols).map((c) => esc(c.label)).join("، ")}.</p>
         <div class="drop"><p style="margin:0 0 10px">اختر الملف</p><input type="file" id="dsFile" data-app="${p.id}" accept=".xlsx,.xls,.csv"></div>
         <details class="section"><summary style="cursor:pointer;font-weight:600">أو الصق الجدول منسوخاً من المنصة الأصلية</summary>
@@ -309,6 +320,7 @@
   const LCOL = { N8: "#4F7A8C", N7: "#9B6B3F", N5: "#7A5BA8", N4: "#D99A0B", N6: "#3F7CB5", N2: "#C2312A", N3: "#D9702B", N1: "#17715F", N9: "#6B747A" };
   function licensesApp(p, tab) {
     tab = tab || "overview";
+    if (tab === "data" && !canEditP("licenses")) tab = "overview";
     const allRows = HUB.licRows();
     // فترة التحليل: الرخص التي ينتهي تاريخها ضمن آخر N أشهر أو بعده (0 = الكل)
     const ps = ui.licPer ? new Date(U.today().getFullYear(), U.today().getMonth() - ui.licPer, U.today().getDate()) : null;
@@ -318,7 +330,7 @@
     const open = rows.filter((r) => !r.closed);
     const over = open.filter((r) => r.over > 0).sort((a, b) => b.over - a.over);
     const age = U.daysFrom(S.licenses.asof);
-    const tabs = [["overview", "التحليل"], ["list", "الرخص وأسباب التأخر", rows.length], ["eng", "حسب المهندس"], ["data", "تحديث البيانات"], ["site", "المنصة المنشورة"]];
+    const tabs = [["overview", "التحليل"], ["list", "الرخص وأسباب التأخر", rows.length], ["eng", "حسب المهندس"]].concat(canEditP("licenses") ? [["data", "تحديث البيانات"]] : []).concat([["site", "المنصة المنشورة"]]);
     const stale = age > 14 ? `<div class="note">ملف الرخص بتاريخ ${U.dmy(S.licenses.asof)} (منذ ${U.days(age)}). أيام التجاوز محسوبة حتى اليوم؛ ارفع ملف الأسبوع من «تحديث البيانات» ليعكس الموقف الحالي.</div>` : "";
     let body = "";
     if (tab === "overview") {
@@ -418,7 +430,7 @@
   function safetyApp(p) {
     view.innerHTML = `<div class="app-head"><div>${BACK}<h1>${esc(p.name)}</h1><p>${esc(p.purpose)} · التطبيق نفسه يعمل داخل البوابة وعلى رابطه المستقل، والبيانات واحدة.</p></div>
       ${openBtns(p)}</div><div id="saMount" style="margin-top:18px"></div>`;
-    saInst = SafetyApp.mount($("#saMount"), { api: "/api/data", seed: S.cards, onChange: (v) => { S.cards = v; U.ls.set("cards", v); U.ls.set("ctxAt", 0); HUB.pushContext(); E = HUB.evaluateAll(); } });
+    saInst = SafetyApp.mount($("#saMount"), { api: "/api/data", seed: S.cards, headers: () => HUB.Auth.headers(), canEdit: canEditP("safety"), canExport: canExpP("safety"), onChange: (v) => { S.cards = v; U.ls.set("cards", v); U.ls.set("ctxAt", 0); HUB.pushContext(); E = HUB.evaluateAll(); } });
   }
   const CMAP = { emp: /^emp/, name: /name|الاسم/, iqama: /iqama|الإقامة|الاقامة/, badge: /badge|بطاقةالمقاول/, sap: /^sap/, exp: /expiry|انتهاء/, remark: /remark|ملاحظ/ };
   function parseCardDate(v) {
@@ -519,12 +531,16 @@
 
   /* ---------- الإعدادات ---------- */
   function settings() {
-    view.innerHTML = `<div class="app-head"><div><h1>إعدادات البوابة</h1><p>تخص هذا الجهاز فقط.</p></div></div>
-      <div class="section two"><div class="panel"><h3>رمز الإدارة</h3><p class="hint">إن فُعّل رمز للحفظ على Netlify (متغير HUB_ADMIN_PIN) فاكتبه هنا ليُسمح لهذا الجهاز بحفظ القراءات ورفع الملفات.</p>
-        <form class="form" id="pinForm"><label class="f">الرمز<input type="password" id="pin" value="${esc(U.ls.get("pin") || "")}" autocomplete="off"></label><div><button class="btn pri" type="submit">حفظ الرمز</button></div></form><p class="msg" id="pinMsg" role="status"></p></div>
-        <div class="panel"><h3>المظهر</h3><p class="hint">يتبع إعداد الجهاز افتراضياً.</p><div class="chips">${["auto:تلقائي", "light:فاتح", "dark:داكن"].map((x) => { const [k, l] = x.split(":"); return `<button class="chip" type="button" data-theme="${k}" aria-pressed="${(U.ls.get("theme") || "auto") === k}">${l}</button>`; }).join("")}</div></div>
-        <div class="panel"><h3>حالة الاتصال</h3><p class="hint">${Store.online ? "متصل بقاعدة البيانات المشتركة: كل ما تحفظه يظهر على كل الأجهزة." : "غير متصل بالقاعدة المشتركة: الحفظ على هذا المتصفح فقط حتى يعود الاتصال."}</p></div>
-        <div class="panel"><h3>إضافة منصة جديدة</h3><p class="hint">تُضاف المنصة بعنصر واحد في الملف public/js/registry.js (الاسم، الرابط، المؤشرات، وقاعدة الحالة) فتظهر في القائمة والرئيسية والمساعد تلقائياً.</p></div></div>`;
+    const u = HUB.user, isAdmin = hasCap("users");
+    view.innerHTML = `<div class="app-head"><div>${BACK}<h1>إدارة البوابة</h1><p>${isAdmin ? "الحسابات والصلاحيات لكل منصات الوبران — حساب واحد لكل المنصات." : "حسابك في منصة الوبران."}</p></div></div>
+      <div class="section two"><div class="panel"><h3>حسابي</h3><p class="hint">${esc(u.name)} · <span class="ltr">${esc(u.email)}</span> · ${esc(u.roleLabel)}</p>
+        <form class="form" id="cpForm"><label class="f">كلمة المرور الحالية<input type="password" id="cpCur" required dir="ltr" autocomplete="current-password"></label><label class="f">كلمة المرور الجديدة<input type="password" id="cpNew" minlength="6" required dir="ltr" autocomplete="new-password"></label><div><button class="btn pri" type="submit">تغيير كلمة المرور</button></div></form>
+        <p class="msg" id="cpMsg" role="status"></p><button class="btn" type="button" data-logout>تسجيل الخروج</button></div>
+        <div class="panel"><h3>منصاتي وصلاحياتي</h3><div class="tbl"><table><thead><tr><th>المنصة</th><th>الصلاحية</th></tr></thead><tbody>${REGISTRY_ALL.map((p) => `<tr><td>${esc(p.name)}</td><td>${AUTHUI.LV[lvl(p.id)]}</td></tr>`).join("")}</tbody></table></div>
+        <p class="hint" style="margin-top:10px">صلاحيات عامة: ${u.caps.map((c) => AUTHUI.CAPL[c]).join("، ") || "لا يوجد"}</p>
+        <div class="chips">${["auto:تلقائي", "light:فاتح", "dark:داكن"].map((x) => { const [k, l] = x.split(":"); return `<button class="chip" type="button" data-theme="${k}" aria-pressed="${(U.ls.get("theme") || "auto") === k}">المظهر: ${l}</button>`; }).join("")}</div></div></div>
+      ${isAdmin ? `<section class="section"><h2>إدارة الحسابات والصلاحيات</h2><p class="hint">أضف مستخدماً، واختر دوره (مدير مشروع، مهندس موقع، محاسب، مشاهد) أو «مخصّص»، ثم حدّد لكل منصة: بلا وصول، عرض فقط، عرض وتصدير، أو تعديل.</p><div id="usersRoot"></div></section>` : ""}`;
+    if (isAdmin) AUTHUI.usersPanel($("#usersRoot"));
   }
 
   /* ---------- الموجّه ---------- */
@@ -533,7 +549,7 @@
     E = HUB.evaluateAll();
     const r = parse();
     renderNav(r);
-    $("#crumb").textContent = r.name === "app" || r.name === "go" ? reg(r.app).name : r.name === "settings" ? "إعدادات البوابة" : "الصفحة الرئيسية";
+    $("#crumb").textContent = r.name === "app" || r.name === "go" ? reg(r.app).name : r.name === "settings" ? "إدارة البوابة" : "الصفحة الرئيسية";
     if (r.name !== "go") { document.body.classList.remove("go-mode"); const gb = document.getElementById("goBar"); if (gb) gb.remove(); }
     if (r.name === "go") goPage(reg(r.app));
     else if (r.name === "home") home();
@@ -551,11 +567,12 @@
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
   document.addEventListener("click", async (ev) => {
-    const t = ev.target.closest("[data-dsprint],[data-dspng],[data-edcprint],[data-ddst],[data-ddexp],[data-hper],[data-dexp],[data-dlexp],[data-lexp],[data-dfreset],[data-lfreset],[data-licper],#syncNow,[data-dsf],[data-tpl],[data-dscsv],[data-dsclear],[data-dsparse],#dsCommit,#dsCancel,[data-go],[data-licf],[data-csv],[data-theme],#licCommit,#licCancel,#cardCommit,#cardCancel,#genSummary,#settingsBtn,#menuBtn");
+    const t = ev.target.closest("[data-logout],[data-dsprint],[data-dspng],[data-edcprint],[data-ddst],[data-ddexp],[data-hper],[data-dexp],[data-dlexp],[data-lexp],[data-dfreset],[data-lfreset],[data-licper],#syncNow,[data-dsf],[data-tpl],[data-dscsv],[data-dsclear],[data-dsparse],#dsCommit,#dsCancel,[data-go],[data-licf],[data-csv],[data-theme],#licCommit,#licCancel,#cardCommit,#cardCancel,#genSummary,#settingsBtn,#menuBtn");
     if (!t) return;
     if (t.dataset.go) { location.hash = t.dataset.go; return; }
     if (t.id === "menuBtn") { const o = $("#side").classList.toggle("open"); t.setAttribute("aria-expanded", String(o)); return; }
     if (t.id === "settingsBtn") { location.hash = "#/settings"; return; }
+    if (t.dataset.logout !== undefined) { AUTHUI.logout(); return; }
     if (t.dataset.licf !== undefined) { ui.licF = t.dataset.licf; render(); return; }
     if (t.dataset.ddst !== undefined) { ui.ddSt = t.dataset.ddst; render(); return; }
     if (t.dataset.edcprint !== undefined) { if (ui.ddDay) printEdc(ui.ddDay); return; }
@@ -682,7 +699,7 @@
       location.hash = link(id, "summary"); render();
       return;
     }
-    if (ev.target.id === "pinForm") { ev.preventDefault(); U.ls.set("pin", $("#pin").value.trim()); $("#pinMsg").className = "msg ok"; $("#pinMsg").textContent = "حُفظ الرمز على هذا الجهاز."; }
+    if (ev.target.id === "cpForm") { ev.preventDefault(); AUTHUI.changePassword(ev.target, $("#cpMsg")); }
   });
 
   function applyTheme() { const t = U.ls.get("theme") || "auto"; if (t === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", t); }
@@ -691,6 +708,15 @@
   async function boot() {
     applyTheme();
     $("#today").textContent = U.longDate();
+    view.innerHTML = `<div class="empty">جارٍ التحقق من الدخول…</div>`;
+    let user = null;
+    try { user = await AUTHUI.ensure(); } catch (e) { view.innerHTML = `<div class="panel empty"><h3>تعذّر الاتصال بخادم المنصة</h3><p>${esc(e.message)}</p></div>`; return; }
+    if (!user) return;
+    // المنصات الظاهرة = ما للمستخدم وصول إليه
+    window.REGISTRY = REGISTRY_ALL.filter((p) => (user.access[p.id] || "none") !== "none");
+    $("#settingsBtn").textContent = hasCap("users") ? "إدارة البوابة والصلاحيات" : "حسابي";
+    $("#userBox").innerHTML = `<b>${esc(user.name)}</b><span>${esc(user.roleLabel)}</span><button type="button" data-logout>تسجيل الخروج</button>`;
+    if (!hasCap("assistant")) { const ab = $("#askBtn"); if (ab) ab.hidden = true; }
     view.innerHTML = `<div class="empty">جارٍ تحميل بيانات الفرع…</div>`;
     await HUB.loadAll();
     $("#syncTxt").textContent = Store.online ? "متصل بقاعدة البيانات المشتركة" : "وضع محلي: الحفظ على هذا الجهاز";

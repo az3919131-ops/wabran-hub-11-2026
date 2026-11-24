@@ -62,13 +62,16 @@
 
   function mount(el, opt) {
     const api = opt.api;
+    const H = () => (opt.headers ? opt.headers() : {});
+    const canEdit = opt.canEdit !== false, canExport = opt.canExport !== false;
     const S = { rows: [], asof: "", tab: "overview", f: { st: "", q: "", grp: "", rc: "", from: "", to: "" }, pending: null, sort: "left", msg: "" };
     try { const t = localStorage.getItem("sc_tab2"); if (t) S.tab = t; } catch (e) {}
 
     async function load() {
       el.innerHTML = '<div class="sa-empty">جارٍ تحميل البطاقات…</div>';
       try {
-        const r = await fetch(api + "?key=cards", { cache: "no-store" });
+        const r = await fetch(api + "?key=cards", { cache: "no-store", headers: H() });
+        if (r.status === 401 || r.status === 403) { const j0 = await r.json().catch(() => ({})); S.rows = []; S.msg = j0.error || "لا تملك صلاحية عرض البطاقات"; return render(); }
         const j = await r.json();
         const v = j.value && j.value.rows ? j.value : opt.seed;
         S.rows = v.rows; S.asof = v.asof || "";
@@ -77,8 +80,7 @@
     }
     async function save(rows, mode) {
       const val = { asof: iso(today()), rows };
-      let pin = ""; try { pin = localStorage.getItem("wh_pin") ? JSON.parse(localStorage.getItem("wh_pin")) : ""; } catch (e) {}
-      const r = await fetch(api + "?key=cards", { method: "PUT", headers: { "content-type": "application/json", "x-hub-pin": pin || "" }, body: JSON.stringify(val) });
+      const r = await fetch(api + "?key=cards", { method: "PUT", headers: { "content-type": "application/json", ...H() }, body: JSON.stringify(val) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || "تعذّر الحفظ (" + r.status + ")");
       S.rows = rows; S.asof = val.asof; if (opt.onChange) opt.onChange(val);
@@ -165,7 +167,7 @@
             <label>الانتهاء حتى<input type="date" id="saTo" value="${esc(f.to)}"></label>
           </div>
           <div class="sa-actions"><span class="sa-mut">${esc(describe())} — <b>${list.length}</b> بطاقة</span>
-            <span class="sa-btns"><button class="btn pri" type="button" data-exp="xlsx">تصدير Excel</button><button class="btn" type="button" data-exp="csv">تصدير CSV</button><button class="btn" type="button" data-exp="print">طباعة / PDF</button><button class="btn" type="button" data-reset>مسح الفلاتر</button></span></div>
+            <span class="sa-btns">${canExport ? '<button class="btn pri" type="button" data-exp="xlsx">تصدير Excel</button><button class="btn" type="button" data-exp="csv">تصدير CSV</button><button class="btn" type="button" data-exp="print">طباعة / PDF</button>' : '<span class="sa-mut">التصدير غير متاح لصلاحيتك</span>'}<button class="btn" type="button" data-reset>مسح الفلاتر</button></span></div>
         </div>${table(list)}`;
     }
     function data() {
@@ -183,7 +185,8 @@
     }
     function render() {
       const A = all();
-      const tabs = [["overview", "الصورة العامة"], ["report", "التقارير والتصدير", filtered().length], ["data", "تحديث البيانات"]];
+      const tabs = [["overview", "الصورة العامة"], ["report", "التقارير والتصدير", filtered().length]].concat(canEdit ? [["data", "تحديث البيانات"]] : []);
+      if (S.tab === "data" && !canEdit) S.tab = "overview";
       el.innerHTML = `<div class="sa">${S.msg && S.tab !== "data" ? `<div class="note">${esc(S.msg)}</div>` : ""}
         <div class="sa-tabs" role="tablist">${tabs.map(([k, l, n]) => `<button role="tab" type="button" data-tab="${k}" aria-selected="${S.tab === k}">${l}${n != null ? ` <span class="count">${n}</span>` : ""}</button>`).join("")}</div>
         <div>${S.tab === "report" ? report() : S.tab === "data" ? data() : overview()}</div>
@@ -201,6 +204,7 @@
       if (d.month) { const [y, m] = d.month.split("-").map(Number); S.f = { st: "notexp", q: "", grp: "", rc: "", from: d.month + "-01", to: iso(new Date(y, m, 0)) }; return setTab("report"); }
       if (d.st !== undefined) { S.f.st = d.st; return render(); }
       if (d.reset !== undefined) { S.f = { st: "", q: "", grp: "", rc: "", from: "", to: "" }; return render(); }
+      if (d.exp && !canExport) return;
       if (d.exp) { const list = filtered(); return d.exp === "xlsx" ? exportXlsx(list) : d.exp === "csv" ? exportCsv(list) : printReport(list); }
       if (d.cancel !== undefined) { S.pending = null; return render(); }
       if (d.commit) {

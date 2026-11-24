@@ -295,3 +295,28 @@ body.go-mode .shell { display: block; }
 body.go-mode .view { padding: 0; max-width: none; }
 .go-frame { position: fixed; top: 52px; inset-inline: 0; bottom: 0; width: 100%; height: calc(100vh - 52px); border: 0; background: #fff; }
 @media (max-width: 760px) { .go-bar b, .go-bar .go-link:first-of-type { display: none; } .go-bar select { max-width: 150px; } }
+
+/* الدخول الموحد */
+body.auth-mode .shell, body.auth-mode .drawer, body.auth-mode .scrim { display: none !important; }
+.auth-screen { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: radial-gradient(circle at 80% 10%, #1D3540, #13262F 60%); }
+.auth-card { width: min(420px, 100%); background: var(--panel); color: var(--text); border-radius: 14px; padding: 28px 26px 18px; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+.auth-brand { display: flex; gap: 12px; align-items: center; margin-bottom: 18px; }
+.auth-brand b { display: block; font: 700 18px var(--f-head); }
+.auth-brand span { font-size: 13px; color: var(--muted); }
+.auth-card h1 { font-size: 22px; margin-bottom: 4px; }
+.auth-sub { color: var(--muted); margin: 0 0 14px; font-size: 14px; }
+.auth-form { display: grid; gap: 12px; }
+.auth-form label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+.auth-form input { padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--text); font-size: 15px; }
+.auth-form .btn { padding: 10px; font-size: 15px; }
+.auth-msg { min-height: 1.5em; font-size: 14px; margin: 10px 0 4px; }
+.auth-msg.err { color: var(--bad); } .auth-msg.ok { color: var(--ok); }
+.auth-link { background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; padding: 0; font-size: 14px; }
+.auth-sign { margin: 18px 0 0; text-align: center; direction: ltr; font: 600 12px var(--f-head); color: var(--muted); }
+.user-box { display: grid; gap: 2px; padding: 4px 2px 8px; border-bottom: 1px solid var(--ink-2); }
+.user-box b { color: var(--on-ink); font-size: 14px; }
+.user-box span { font-size: 12px; }
+.user-box button { margin-top: 6px; }
+table.perm td, table.perm th { text-align: center; }
+table.perm td:first-child, table.perm th:first-child { text-align: start; }
+table.perm input { width: 18px; height: 18px; accent-color: var(--ink); }

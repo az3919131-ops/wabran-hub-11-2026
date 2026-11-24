@@ -24,11 +24,20 @@
   };
 
   /* ---------- القاعدة المشتركة (Netlify Blobs عبر /api/data) مع نسخة محلية احتياطية ---------- */
+  // رمز الدخول الموحد
+  const Auth = {
+    get token() { return U.ls.get("token") || ""; },
+    set token(v) { U.ls.set("token", v || ""); },
+    headers() { return this.token ? { authorization: "Bearer " + this.token } : {}; },
+    onExpired: null,
+  };
   const Store = {
     online: null,
     async get(key) {
       try {
-        const r = await fetch("/api/data?key=" + key, { cache: "no-store" });
+        const r = await fetch("/api/data?key=" + key, { cache: "no-store", headers: Auth.headers() });
+        if (r.status === 401) { Store.online = true; if (Auth.onExpired) Auth.onExpired(); return null; }
+        if (r.status === 403) { Store.online = true; U.ls.set(key, null); return null; }
         if (!r.ok) throw new Error(r.status);
         const j = await r.json();
         Store.online = true;
@@ -44,11 +53,11 @@
       try {
         const r = await fetch("/api/data?key=" + key, {
           method: "PUT",
-          headers: { "content-type": "application/json", "x-hub-pin": U.ls.get("pin") || "" },
+          headers: { "content-type": "application/json", ...Auth.headers() },
           body: JSON.stringify(value),
         });
         const j = await r.json().catch(() => ({}));
-        if ([400, 401, 413].includes(r.status)) return { ok: false, error: j.error || "تعذّر الحفظ في القاعدة المشتركة (" + r.status + ")" };
+        if ([400, 401, 403, 413].includes(r.status)) return { ok: false, error: j.error || "تعذّر الحفظ في القاعدة المشتركة (" + r.status + ")" };
         if (!r.ok) { Store.online = false; return { ok: true, shared: false }; }
         Store.online = true;
         return { ok: true, shared: true };
@@ -294,10 +303,10 @@
     if (last && Date.now() - last < 6 * 36e5) return;
     const text = buildContext();
     try {
-      const r = await fetch("/api/data?key=context", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, at: new Date().toISOString() }) });
+      const r = await fetch("/api/data?key=context", { method: "PUT", headers: { "content-type": "application/json", ...Auth.headers() }, body: JSON.stringify({ text, at: new Date().toISOString() }) });
       if (r.ok) U.ls.set("ctxAt", Date.now());
     } catch (e) {}
   }
 
-  window.HUB = { withPeriod, U, Store, S, loadAll, classify, licRows, cardRows, CARD_ST, LIC_CLS, latest, evaluate, evaluateAll, buildContext, pushContext };
+  window.HUB = { Auth, withPeriod, U, Store, S, loadAll, classify, licRows, cardRows, CARD_ST, LIC_CLS, latest, evaluate, evaluateAll, buildContext, pushContext };
 })();

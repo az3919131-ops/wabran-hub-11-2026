@@ -93,7 +93,9 @@
       var s = JSON.stringify(body), h = hash(s);
       if (sessionStorage.getItem(LAST) === h) return;
       body.syncedAt = new Date().toISOString();
-      var r = await fetch(HUB, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body), keepalive: !!final, mode: "cors" });
+      var tok = ""; try { tok = localStorage.getItem("wabran_hub_token") || ""; } catch (e) {}
+      if (!tok) return; // المزامنة بعد دخول المخطط بحساب منصة الوبران
+      var r = await fetch(HUB, { method: "PUT", headers: { "content-type": "application/json", authorization: "Bearer " + tok }, body: JSON.stringify(body), keepalive: !!final, mode: "cors" });
       if (r.ok) sessionStorage.setItem(LAST, h);
     } catch (e) { /* المزامنة لا تؤثر على عمل اللوحة */ }
     finally { busy = false; }

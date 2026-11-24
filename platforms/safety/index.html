@@ -90,7 +90,13 @@ footer { text-align: center; padding: 18px; border-top: 1px solid var(--line); c
 <script>
   // إن جاء الطلب من البوابة نفسها (المعاينة المحلية) تُستخدم القاعدة المحلية، وإلا قاعدة البوابة المنشورة
   var API = location.hostname === "localhost" && location.port === "8767" ? "http://localhost:8765/api/data" : "https://wabran-najran-hub.netlify.app/api/data";
-  SafetyApp.mount(document.getElementById("app"), { api: API, seed: { asof: "", rows: [] } });
+  (function start() {
+    if (!window.WabranAuth) return setTimeout(start, 50);
+    WabranAuth.ready.then(function (u) {
+      var lv = (u.access && u.access.safety) || "none";
+      SafetyApp.mount(document.getElementById("app"), { api: API, seed: { asof: "", rows: [] }, headers: WabranAuth.headers, canEdit: lv === "edit", canExport: lv === "edit" || lv === "export" });
+    });
+  })();
 </script>
 <script src="/wabran-nav.js" data-platform="safety" defer></script>
 </body>

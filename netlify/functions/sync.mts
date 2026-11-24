@@ -1,12 +1,14 @@
 import type { Config } from "@netlify/functions";
 import { runSync } from "../lib/sync.mts";
+import { currentUser, can, json } from "../lib/auth.mts";
 
-// مزامنة يدوية من زر «مزامنة الآن» في البوابة.
+// مزامنة يدوية من زر «مزامنة الآن» — لمن يملك صلاحية المزامنة
 export default async (req: Request) => {
-  const pin = Netlify.env.get("HUB_ADMIN_PIN");
-  if (pin && req.headers.get("x-hub-pin") !== pin) return Response.json({ error: "رمز الإدارة غير صحيح" }, { status: 401 });
+  const u = await currentUser(req);
+  if (!u) return json(req, { error: "سجّل الدخول أولاً" }, 401);
+  if (!can(u, "sync")) return json(req, { error: "لا تملك صلاحية المزامنة" }, 403);
   const report = await runSync();
-  return Response.json({ ok: true, report });
+  return json(req, { ok: true, report });
 };
 
 export const config: Config = { path: "/api/sync", method: "POST", rateLimit: { windowLimit: 6, windowSize: 60, aggregateBy: ["ip", "domain"] } };

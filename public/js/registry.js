@@ -132,4 +132,5 @@
       source: "https://claude.ai/artifact/TLfTbRDsQCFc2GUMUJgSxr",
     },
   ];
+  window.REGISTRY_ALL = window.REGISTRY.slice();
 })();

@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Config } from "@netlify/functions";
+import { currentUser, can } from "../lib/auth.mts";
 
 const SYSTEM = `أنت "مساعد الوبران"، المساعد الذكي لمنصة إدارة أعمال المقاول (الوبران) فرع نجران.
 جمهورك: مدير الفرع والإدارة العليا. أجب بالعربية الفصحى المبسطة، باختصار ووضوح، وبالأرقام.
@@ -12,6 +13,9 @@ const SYSTEM = `أنت "مساعد الوبران"، المساعد الذكي �
 
 export default async (req: Request) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+  const u = await currentUser(req);
+  if (!u) return Response.json({ error: "سجّل الدخول أولاً" }, { status: 401 });
+  if (!can(u, "assistant")) return Response.json({ error: "no_assistant_permission" }, { status: 403 });
   let body: any;
   try { body = await req.json(); } catch { return Response.json({ error: "طلب غير صالح" }, { status: 400 }); }
   const messages = Array.isArray(body?.messages) ? body.messages.slice(-12) : [];
