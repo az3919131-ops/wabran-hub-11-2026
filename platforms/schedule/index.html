@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>منصة تقدم الأعمال — الوبران نجران</title>
+<meta name="description" content="منصة تحليل ومتابعة تقدم الأعمال اليومية والشهرية (DOR) — مقاولة الوبران، مشروع نجران SCECO">
+<meta name="theme-color" content="#16232e">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2316232e'/%3E%3Cpath d='M6 22 L14 10 L18 16 L26 8' stroke='%23b9821f' stroke-width='2.5' fill='none'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="src/app.css">
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="side" id="side" aria-label="القائمة الرئيسية">
+    <div class="brand"><div class="logo">و</div><div class="t">منصة تقدم الأعمال<small>الوبران · نجران SCECO</small></div></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="side-foot">
+      <button id="btn-collapse" class="collapse-btn" title="طي/فتح القائمة" aria-label="طي القائمة">⇔</button>
+      <button id="btn-theme" title="تبديل الوضع" aria-label="تبديل الوضع">◐</button>
+    </div>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <button class="btn menu-btn" id="btn-menu" aria-label="فتح القائمة">☰</button>
+      <h1 id="page-title">—</h1>
+      <span class="meta">آخر بيانات: <b class="mono" id="tb-last">—</b> · <span class="mono" id="tb-rows">—</span> بند</span>
+    </header>
+    <main class="content">
+      <section class="filters" id="filters" aria-label="الفلاتر"></section>
+      <div id="loading" class="loading sheet">جارٍ تحميل البيانات…</div>
+      <div id="error" class="err hidden"></div>
+      <div id="page"></div>
+    </main>
+  </div>
+</div>
+<div class="tip" id="tip" role="tooltip"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div id="modal-root"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="src/calc.js"></script>
+<script src="src/ui.js"></script>
+<script src="src/importers.js"></script>
+<script src="src/app.js"></script>
+<script src="src/pages-a.js"></script>
+<script src="src/pages-b.js"></script>
+<script src="src/pages-c.js"></script>
+<script>App.boot();</script>
+<script src="wabran-nav.js" data-platform="schedule" defer></script>
+<script src="wabran-hub-sync.js" defer></script>
+<footer style="text-align:center;padding:10px;color:#6b7a80;font-size:12px">Project Manager | Eng. Ahmed Zahran</footer>
+</body>
+</html>

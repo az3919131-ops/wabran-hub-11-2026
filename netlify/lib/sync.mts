@@ -111,6 +111,11 @@ export async function runSync() {
     try {
       const ds = await fn();
       if (!ds.rows.length) throw new Error("المصدر أعاد صفر سجلات — لم أستبدل البيانات الحالية");
+      // جدول الأعمال: النسخة المرفوعة من متصفح المنصة الأصلية أحدث من ملف الأساس الثابت؛ لا نستبدلها بأقدم منها
+      if (id === "schedule") {
+        const cur: any = await store.get("ds_schedule", { type: "json" });
+        if (cur && cur.monthly && String(cur.asof || "") >= String(ds.asof || "")) { report[id] = `kept ${cur.rows?.length || 0} (المنصة حتى ${cur.asof})`; continue; }
+      }
       ds.syncedAt = new Date().toISOString();
       await store.setJSON("ds_" + id, ds);
       report[id] = `ok ${ds.rows.length}`;

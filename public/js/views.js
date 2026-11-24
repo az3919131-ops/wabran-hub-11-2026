@@ -136,11 +136,6 @@
     view.innerHTML = p.noFrame
       ? `<div class="panel empty" style="margin-top:70px"><h3>${esc(p.name)} لا تسمح بالعرض داخل منصة أخرى</h3><p>المنصة الأصلية مضبوطة لمنع العرض داخل المواقع الأخرى، فتُفتح في تبويب مستقل. ارجع للرئيسية من هذا الشريط أو من زر الرجوع في المتصفح.</p><a class="btn pri" href="${esc(p.url)}" target="_blank" rel="noopener">فتح ${esc(p.short)} في تبويب جديد</a></div>`
       : `<iframe class="go-frame" src="${esc(p.url)}" title="${esc(p.name)}" referrerpolicy="no-referrer"></iframe>`;
-    // المنصات المستقلة المرتبطة بالدخول الموحد تطلب رمز الدخول من هنا، فيُرسل لنطاقها فقط
-    const origin = new URL(p.url).origin;
-    if (window.__goMsg) window.removeEventListener("message", window.__goMsg);
-    window.__goMsg = (e) => { if (e.origin === origin && e.data && e.data.type === "wabran-ready") { const f = document.querySelector(".go-frame"); if (f && f.contentWindow) f.contentWindow.postMessage({ type: "wabran-token", token: HUB.Auth.token }, origin); } };
-    window.addEventListener("message", window.__goMsg);
   }
 
   function appShell(p, tabs, tab, body) {
@@ -149,6 +144,13 @@
       <div class="tabs" role="tablist">${tabs.map((t) => `<button role="tab" type="button" data-go="${link(p.id, t[0])}" aria-selected="${t[0] === tab}">${t[1]}${t[2] != null ? ` <span class="count num">${t[2]}</span>` : ""}</button>`).join("")}</div>
       <div role="tabpanel">${body}</div>`;
   }
+  // المنصات المستقلة المرتبطة بالدخول الموحد (داخل أي إطار في البوابة) تطلب رمز الدخول، فيُرسل لنطاقها فقط
+  const SSO = new Set(["https://najran-safety-cards.netlify.app", "https://najran-dispatch-board.netlify.app", "https://wabran-licenses-platform.netlify.app", "https://najran-wabran-dor-dashboard.netlify.app"]);
+  window.addEventListener("message", (e) => {
+    if (!SSO.has(e.origin) || !e.data || e.data.type !== "wabran-ready" || !e.source || !HUB.Auth.token) return;
+    const fromFrame = [...document.querySelectorAll("iframe")].some((f) => f.contentWindow === e.source);
+    if (fromFrame) e.source.postMessage({ type: "wabran-token", token: HUB.Auth.token }, e.origin);
+  });
   function frame(url, label) {
     const rp = REGISTRY.find((x) => x.url === url);
     if (rp && rp.noFrame) return `<div class="panel empty"><h3>${esc(rp.name)} تمنع العرض داخل منصة أخرى</h3><p>المنصة الأصلية مضبوطة لمنع عرضها داخل المواقع الأخرى، فتُفتح في تبويب مستقل.</p><a class="btn pri" href="${esc(url)}" target="_blank" rel="noopener">فتح المنصة الأصلية</a></div>`;
@@ -258,6 +260,86 @@
       </div></section>`;
   }
 
+  /* ---------- جدول الأعمال: «التحليل الشهري» بنفس حساب المنصة الأصلية ---------- */
+  function schedModel(ds) {
+    if (ds.monthly && ds.monthly.months && ds.monthly.months.length) return ds.monthly;
+    // احتياط عند غياب النسخة المحسوبة: نفس معادلات المنصة (المخطط اليومي = متوسط كل أيام التقارير)
+    const byDay = new Map(); (ds.rows || []).forEach((r) => { if (r.date) byDay.set(r.date, (byDay.get(r.date) || 0) + (Number(r.value) || 0)); });
+    const days = [...byDay].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([date, value]) => ({ date, value }));
+    const avgDaily = days.length ? days.reduce((t, d) => t + d.value, 0) / days.length : null;
+    const st = (a, pl) => (a == null || !pl ? "none" : a / pl >= 0.95 ? "ok" : a / pl >= 0.8 ? "warn" : "bad");
+    const mm = new Map(); days.forEach((d) => { const k = d.date.slice(0, 7); if (!mm.has(k)) mm.set(k, []); mm.get(k).push(d); });
+    const months = [...mm].map(([ym, ds2]) => {
+      const value = ds2.reduce((t, d) => t + d.value, 0), n = ds2.length, dim = new Date(Date.UTC(+ym.slice(0, 4), +ym.slice(5, 7), 0)).getUTCDate();
+      const have = new Set(ds2.map((d) => d.date)), last = days[days.length - 1].date, missing = [];
+      for (let i = 1; i <= dim; i++) { const d = ym + "-" + String(i).padStart(2, "0"); if (d > last) break; if (!have.has(d)) missing.push(d); }
+      return { ym, value, days: n, avg: value / n, count: null, planAvg: avgDaily, plan: avgDaily * n, status: st(value, avgDaily * n), avgStatus: st(value / n, avgDaily), bad: ds2.filter((d) => st(d.value, avgDaily) === "bad").length, missing, target: null, daily: ds2.map((d) => ({ ...d, plan: avgDaily, status: st(d.value, avgDaily) })), byLoc: [], byItem: [] };
+    });
+    return { lastDate: days.length ? days[days.length - 1].date : null, avgDaily, mode: "avg", months, approx: true };
+  }
+  const SHC = { ok: "#2E7D4F", warn: "#B8862B", bad: "#9C3328", none: "#8A979C" };
+  const SHT = { ok: "✓ على المسار", warn: "▲ يحتاج متابعة", bad: "✗ متأخر / حرج", none: "○ غير متاح" };
+  function svgMonthBars(ms, sel) {
+    const W = 640, H = 270, L = 8, R = 58, T = 14, B = 30, mx = Math.max(1, ...ms.map((m) => Math.max(m.value, m.plan || 0))) * 1.08;
+    const bw = (W - L - R) / ms.length, y = (v) => T + (H - T - B) * (1 - v / mx);
+    const tick = (v) => (v >= 1e6 ? (v / 1e6).toFixed(2) + "M" : v >= 1e3 ? Math.round(v / 1e3) + "K" : String(Math.round(v)));
+    const grid = [0, 0.5, 1].map((f) => mx / 1.08 * f).map((v) => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="currentColor" stroke-opacity=".12"/><text x="${W - R + 6}" y="${y(v) + 4}" font-size="11" fill="currentColor" fill-opacity=".6">${tick(v)}</text>`).join("");
+    const bars = ms.map((m, i) => { const x = L + i * bw + bw * 0.14, w = bw * 0.72, c = m.ym === sel ? "#C8922A" : SHC[m.avgStatus] || SHC.none;
+      return `<g data-schm="${m.ym}" style="cursor:pointer"><title>${m.ym}: منفذ ${U.fmt(Math.round(m.value))} · مخطط ${U.fmt(Math.round(m.plan || 0))}</title><rect x="${x}" y="${y(m.value)}" width="${w}" height="${Math.max(0, H - B - y(m.value))}" rx="2" fill="${c}"${m.ym === sel ? ' stroke="#13262F" stroke-width="1.5"' : ""}/><text x="${x + w / 2}" y="${H - B + 16}" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity=".75">${m.ym.slice(2)}</text></g>`; }).join("");
+    const pl = ms.map((m, i) => `${L + i * bw + bw / 2},${y(m.plan || 0)}`).join(" ");
+    return `<svg viewBox="0 0 ${W} ${H}" class="sch-svg" role="img" aria-label="المخطط مقابل المنفذ شهرياً" direction="ltr">${grid}${bars}<polyline points="${pl}" fill="none" stroke="#C8922A" stroke-width="2" stroke-dasharray="5,4"/></svg>`;
+  }
+  function svgTrend(ms) {
+    const W = 640, H = 270, L = 22, R = 52, T = 14, B = 30, mx = Math.max(1, ...ms.map((m) => Math.max(m.avg || 0, m.planAvg || 0))) * 1.12;
+    const x = (i) => L + (ms.length < 2 ? (W - L - R) / 2 : (i * (W - L - R)) / (ms.length - 1)), y = (v) => T + (H - T - B) * (1 - v / mx);
+    const tick = (v) => (v >= 1e3 ? Math.round(v / 1e3) + "K" : String(Math.round(v)));
+    const grid = [0, 0.25, 0.5, 0.75, 1].map((f) => (mx / 1.12) * f).map((v) => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="currentColor" stroke-opacity=".1"/><text x="${W - R + 6}" y="${y(v) + 4}" font-size="11" fill="currentColor" fill-opacity=".6">${tick(v)}</text>`).join("");
+    const lab = ms.map((m, i) => (ms.length <= 8 || (ms.length - 1 - i) % 2 === 0 ? `<text x="${x(i)}" y="${H - B + 16}" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity=".75">${m.ym.slice(2)}</text>` : "")).join("");
+    const pts = ms.map((m, i) => `${x(i)},${y(m.avg || 0)}`).join(" "), plan = ms.map((m, i) => `${x(i)},${y(m.planAvg || 0)}`).join(" ");
+    const dots = ms.map((m, i) => `<circle cx="${x(i)}" cy="${y(m.avg || 0)}" r="3.2" fill="#C8922A"><title>${m.ym}: ${U.fmt(Math.round(m.avg || 0))} ريال/يوم</title></circle>`).join("");
+    return `<svg viewBox="0 0 ${W} ${H}" class="sch-svg" role="img" aria-label="اتجاه الإنجاز الشهري" direction="ltr">${grid}${lab}<polyline points="${plan}" fill="none" stroke="#3D5A73" stroke-width="2" stroke-dasharray="6,5"/><polyline points="${pts}" fill="none" stroke="#C8922A" stroke-width="2.6"/>${dots}</svg>`;
+  }
+  function schedMonthly(ds) {
+    const M = schedModel(ds), ms = M.months;
+    if (!ms.length) return `<div class="panel empty"><h3>لا بيانات</h3></div>`;
+    let ym = ui.schM && ms.some((m) => m.ym === ui.schM) ? ui.schM : ms[ms.length - 1].ym; ui.schM = ym;
+    const i = ms.findIndex((m) => m.ym === ym), m = ms[i], pm = ms[i - 1];
+    const chg = (a, b) => (b == null || !b ? "" : `${a >= b ? "▲" : "▼"} ${Math.abs(((a - b) / b) * 100).toFixed(1)}% عن الشهر السابق`);
+    const SAR = (v) => U.fmt(Math.round(v || 0)) + " <small>SAR</small>";
+    const sg = (v) => (v >= 0 ? "+" : "−") + U.fmt(Math.abs(Math.round(v)));
+    const tile = (l, v, d, st, stt) => `<div class="sch-k"><span class="l">${l}</span><b class="v">${v}</b><span class="d">${d || "&nbsp;"}</span><span class="s" style="color:${SHC[st]}">${stt || SHT[st]}</span></div>`;
+    const pct = m.plan ? (m.value / m.plan) * 100 : null;
+    const miss = m.missing || [];
+    const tiles = [
+      tile("المخطط الشهري (افتراضي)", SAR(m.plan), m.target ? "هدف محدد يدوياً: " + U.fmt(m.target) : "متوسط × أيام التقارير", "none", "○ افتراض معتمد"),
+      tile("المنفذ الشهري", SAR(m.value), pm ? chg(m.value, pm.value) : "لا شهر سابق", m.status),
+      tile("نسبة الإنجاز الشهري", pct == null ? "—" : (+pct.toFixed(1)) + "%", "منفذ ÷ مخطط", m.status),
+      tile("انحراف الشهر", sg(m.value - (m.plan || 0)) + " <small>SAR</small>", "المنفذ − المخطط", m.status),
+      tile("الإنتاجية اليومية", U.fmt(Math.round(m.avg || 0)) + " <small>SAR/يوم</small>", pm ? chg(m.avg, pm.avg) : "", m.avgStatus),
+      tile("أيام متأخرة", U.fmt(m.bad), `من ${m.days} يوم · أقل من 80% من المخطط اليومي`, m.bad ? "bad" : "ok", m.bad ? SHT.bad : "✓ لا أيام متأخرة"),
+      tile("أيام بلا تقرير", U.fmt(miss.length), miss.slice(0, 4).map((d) => U.dmy(d)).join("، ") + (miss.length > 4 ? "…" : ""), miss.length ? "warn" : "ok", miss.length ? SHT.warn : "✓ كل الأيام مسجلة"),
+      tile("المتبقي لهدف الشهر", m.target ? SAR(Math.max(0, m.target - m.value)) : "غير متاح", m.target ? "هدف " + U.fmt(m.target) : "حدد هدفاً في «التخطيط والتحكم» بالمنصة الأصلية", "none", m.target ? "○ من الهدف اليدوي" : "○ غير متاح"),
+    ];
+    const dmx = Math.max(1, ...(m.daily || []).map((d) => d.value));
+    const dayBars = (m.daily || []).map((d) => ({ l: U.dmy(d.date), v: Math.round(d.value), c: SHC[d.status] || SHC.none }));
+    const locs = (m.byLoc || []).map(([l, v]) => ({ l, v: Math.round(v), c: "var(--ink)" }));
+    return `<section class="section sch">
+      <div class="sch-top"><div><h2>التحليل الشهري</h2><p class="hint">نفس أرقام صفحة «التحليل الشهري» في المنصة الأصلية${M.approx ? " (محسوبة تقريبياً من صفوف البوابة لحين المزامنة من المنصة)" : ""}.</p></div>
+        <div class="sch-nav"><button class="btn sm" type="button" data-schm="${pm ? pm.ym : ""}" ${pm ? "" : "disabled"}>→ الشهر السابق</button>
+        <select id="schSel" aria-label="اختيار الشهر">${ms.map((x) => `<option value="${x.ym}"${x.ym === ym ? " selected" : ""}>${x.ym}</option>`).join("")}</select>
+        <button class="btn sm" type="button" data-schm="${ms[i + 1] ? ms[i + 1].ym : ""}" ${ms[i + 1] ? "" : "disabled"}>الشهر التالي ←</button></div>
+        <span class="sch-meta">آخر بيانات: <b>${M.lastDate ? U.dmy(M.lastDate) : "—"}</b>${ds.items ? ` · ${U.fmt(ds.items)} بند` : ""}${ds.syncedAt ? ` · مزامنة ${new Date(ds.syncedAt).toLocaleString("ar-SA-u-nu-latn", { dateStyle: "short", timeStyle: "short" })}` : ""}</span></div>
+      <div class="sch-grid">${tiles.join("")}</div>
+      <div class="section two">
+        <div class="panel"><h3>المخطط مقابل المنفذ شهرياً</h3><p class="hint">اضغط عموداً لاختيار الشهر. الخط المتقطع = المخطط. اللون حسب الإنتاجية مقابل المخطط.</p>${svgMonthBars(ms, ym)}</div>
+        <div class="panel"><h3>اتجاه الإنجاز الشهري (متوسط يومي)</h3><p class="hint"><span class="lg" style="--c:#C8922A"></span> متوسط يومي &nbsp; <span class="lg dash" style="--c:#3D5A73"></span> المخطط (افتراضي) · ريال/يوم</p>${svgTrend(ms)}</div>
+      </div>
+      <div class="section two">
+        <div class="panel"><h3>الإنتاجية اليومية داخل الشهر ${ym}</h3><p class="hint">قيمة المنفذ في كل يوم مسجل، ملونة مقابل المخطط اليومي.</p>${dayBars.length ? barList(dayBars.slice().reverse(), dmx, money) : `<div class="empty">لا أيام مسجلة.</div>`}</div>
+        <div class="panel"><h3>توزيع الأعمال حسب الموقع</h3><p class="hint">${ym} · الأعلى قيمة أولاً.</p>${locs.length ? barList(locs, Math.max(1, ...locs.map((x) => x.v)), money) : `<div class="empty">يظهر بعد المزامنة من المنصة الأصلية.</div>`}</div>
+      </div></section>`;
+  }
+
   function linkedApp(p, tab) {
     const ds = S.ds[p.id];
     const A = ds ? DS.analyze(p.id, ds) : null;
@@ -272,6 +354,7 @@
     if (tab === "board") body = frame(p.url, p.name);
     else if (tab === "data") body = dataTab(p, A, ds);
     else if (!A) body = needData;
+    else if (tab === "overview" && p.id === "schedule") body = stale + schedMonthly(ds);
     else if (tab === "overview") {
       const s = A.s, open = A.live.length - A.done.length;
       let k;
@@ -598,7 +681,7 @@
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
   document.addEventListener("click", async (ev) => {
-    const t = ev.target.closest("[data-pkcls],[data-logout],[data-dsprint],[data-dspng],[data-edcprint],[data-ddst],[data-ddexp],[data-hper],[data-dexp],[data-dlexp],[data-lexp],[data-dfreset],[data-lfreset],[data-licper],#syncNow,[data-dsf],[data-tpl],[data-dscsv],[data-dsclear],[data-dsparse],#dsCommit,#dsCancel,[data-go],[data-licf],[data-csv],[data-theme],#licCommit,#licCancel,#cardCommit,#cardCancel,#genSummary,#settingsBtn,#menuBtn");
+    const t = ev.target.closest("[data-schm],[data-pkcls],[data-logout],[data-dsprint],[data-dspng],[data-edcprint],[data-ddst],[data-ddexp],[data-hper],[data-dexp],[data-dlexp],[data-lexp],[data-dfreset],[data-lfreset],[data-licper],#syncNow,[data-dsf],[data-tpl],[data-dscsv],[data-dsclear],[data-dsparse],#dsCommit,#dsCancel,[data-go],[data-licf],[data-csv],[data-theme],#licCommit,#licCancel,#cardCommit,#cardCancel,#genSummary,#settingsBtn,#menuBtn");
     if (!t) return;
     if (t.dataset.go) { location.hash = t.dataset.go; return; }
     if (t.id === "menuBtn") { const o = $("#side").classList.toggle("open"); t.setAttribute("aria-expanded", String(o)); return; }
@@ -629,6 +712,7 @@
         rows: list.map((r) => [r.id, r.wo, r.loc, r.eng, U.dmy(r.end), r.st, r.clsName, r.closed ? "مغلقة" : r.over > 0 ? "متجاوزة" : "سارية", r.closed ? "" : r.over, r.why || "", r.act]) });
       return;
     }
+    if (t.dataset.schm !== undefined) { if (t.dataset.schm) { ui.schM = t.dataset.schm; render(); } return; }
     if (t.dataset.pkcls) { ev.preventDefault(); ui.df = { dims: {}, state: "", from: "", to: "" }; ui.dsQ = ""; ui.dsF = t.dataset.pkcls; location.hash = "#/app/projects/all"; return; }
     if (t.dataset.dfreset !== undefined) { ui.df = { dims: {}, state: "", from: "", to: "" }; ui.dsF = ""; ui.dsQ = ""; render(); return; }
     if (t.dataset.lfreset !== undefined) { ui.lf = { eng: "", state: "", from: "", to: "" }; ui.licF = ""; ui.licQ = ""; render(); return; }
@@ -692,6 +776,7 @@
     if (ev.target.id === "cardQ") { ui.cardQ = ev.target.value; render(); const i = $("#cardQ"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
   });
   document.addEventListener("change", (ev) => {
+    if (ev.target.id === "schSel") { ui.schM = ev.target.value; render(); return; }
     const tg = ev.target;
     if (tg.dataset && tg.dataset.dfdim) { ui.df.dims[tg.dataset.dfdim] = tg.value; render(); return; }
     if (tg.id === "goSel") { location.hash = "#/go/" + tg.value; return; }
