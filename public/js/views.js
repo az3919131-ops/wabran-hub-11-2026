@@ -37,6 +37,7 @@
   }
   /* فترة تحليل الصفحة الرئيسية: آخر شهر / آخر 3 أشهر / الكل / فترة مخصصة */
   const HP_KEY = "homePer";
+  U.ls.set(HP_KEY, { per: "all", from: "", to: "" }); // كل تشغيل للمنصة يبدأ بفترة «الكل»
   function homePeriod() {
     const hp = U.ls.get(HP_KEY) || { per: "all", from: "", to: "" };
     const t = U.today();
