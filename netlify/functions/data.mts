@@ -5,10 +5,26 @@ import type { Config } from "@netlify/functions";
 const KEYS = new Set(["snapshots", "licenses", "cards", "summary", "context", "log", "ds_projects", "ds_schedule", "ds_invoices", "ds_assign", "ds_dispatch", "sync"]);
 const MAX_BYTES = 4_000_000;
 
+// المنصات المستقلة المسموح لها بالقراءة والكتابة في القاعدة المشتركة من نطاقها
+const ORIGINS = new Set(["https://najran-safety-cards.netlify.app"]);
+const KEY_BY_ORIGIN: Record<string, string[]> = { "https://najran-safety-cards.netlify.app": ["cards"] };
+
 export default async (req: Request) => {
+  const origin = req.headers.get("origin") || "";
+  const cors: Record<string, string> = ORIGINS.has(origin)
+    ? { "access-control-allow-origin": origin, "access-control-allow-methods": "GET, PUT, OPTIONS", "access-control-allow-headers": "content-type, x-hub-pin", vary: "origin" }
+    : {};
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
+  const res = await handle(req, origin);
+  Object.entries(cors).forEach(([k, v]) => res.headers.set(k, v));
+  return res;
+};
+
+async function handle(req: Request, origin: string) {
   const url = new URL(req.url);
   const key = url.searchParams.get("key") || "";
   if (!KEYS.has(key)) return Response.json({ error: "مفتاح غير معروف" }, { status: 400 });
+  if (KEY_BY_ORIGIN[origin] && !KEY_BY_ORIGIN[origin].includes(key)) return Response.json({ error: "غير مسموح لهذه المنصة" }, { status: 403 });
   const store = getStore({ name: "wabran-hub", consistency: "strong" });
 
   if (req.method === "GET") {
@@ -30,6 +46,6 @@ export default async (req: Request) => {
   }
 
   return new Response("Method not allowed", { status: 405 });
-};
+}
 
-export const config: Config = { path: "/api/data", method: ["GET", "PUT"] };
+export const config: Config = { path: "/api/data", method: ["GET", "PUT", "OPTIONS"] };

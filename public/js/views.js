@@ -292,36 +292,12 @@
   /* ---------- بطاقات السلامة ---------- */
   const SCOL = { expired: "var(--bad)", week: "var(--warn)", soon: "var(--volt)", valid: "var(--ok)" };
   const SP = { expired: "p-bad", week: "p-warn", soon: "p-warn", valid: "p-ok" };
-  function cardTable(list) {
-    const q = ui.cardQ.trim().toLowerCase();
-    const rows = q ? list.filter((c) => (c.emp + " " + c.name + " " + c.iqama + " " + c.badge + " " + (c.remark || "")).toLowerCase().includes(q)) : list;
-    return `<label class="f" style="max-width:340px;margin-bottom:12px">بحث<input type="search" id="cardQ" value="${esc(ui.cardQ)}" placeholder="الاسم، رقم الموظف، الإقامة"></label>
-      <div class="tbl"><table><thead><tr><th>#</th><th>رقم الموظف</th><th>الاسم</th><th>الإقامة</th><th>بطاقة المقاول</th><th>الانتهاء</th><th>الأيام</th><th>الحالة</th><th>ملاحظات</th></tr></thead><tbody>
-      ${rows.map((c, i) => `<tr><td class="num">${i + 1}</td><td class="ltr">${esc(c.emp)}</td><td class="ltr" style="text-align:right">${esc(c.name)}</td><td class="ltr num">${esc(c.iqama)}</td><td class="ltr">${esc(c.badge)}</td><td class="num">${U.dmy(c.exp)}</td><td class="num">${c.left}</td><td><span class="pill ${SP[c.st]}">${HUB.CARD_ST[c.st]}</span></td><td>${esc(c.remark || "")}</td></tr>`).join("") || `<tr><td colspan="9" class="empty">لا نتائج مطابقة.</td></tr>`}</tbody></table></div>`;
-  }
-  function safetyApp(p, tab) {
-    tab = tab || "overview";
-    const rows = HUB.cardRows();
-    const exp = rows.filter((c) => c.st === "expired"), soon = rows.filter((c) => c.st === "week" || c.st === "soon"), valid = rows.filter((c) => c.st !== "expired");
-    const tabs = [["overview", "الصورة العامة"], ["expired", "منتهية", exp.length], ["soon", "تنتهي خلال 30 يوماً", soon.length], ["all", "كل السجل", rows.length], ["data", "تحديث البيانات"], ["site", "المنصة المنشورة"]];
-    let body = "";
-    if (tab === "overview") {
-      const t = U.today(), b = [];
-      for (let i = 0; i < 12; i++) { const m = (t.getMonth() + i) % 12, y = t.getFullYear() + Math.floor((t.getMonth() + i) / 12), key = y + "-" + String(m + 1).padStart(2, "0"); b.push({ l: U.month(m), v: valid.filter((c) => c.exp.slice(0, 7) === key).length }); }
-      const mx = Math.max(1, ...b.map((x) => x.v));
-      body = kpis([["إجمالي العمال", rows.length], ["بطاقات سارية", valid.length, "ok"], ["منتهية", exp.length, "bad"], ["تنتهي خلال 7 أيام", rows.filter((c) => c.st === "week").length, "warn"], ["تنتهي خلال 30 يوماً", soon.length, "warn"]]) +
-        `<div class="section two"><div class="panel"><h3>المنتهية — الأقدم أولاً</h3><p class="hint">عامل ببطاقة منتهية لا يدخل موقع العمل.</p><div class="bars">${exp.slice(0, 14).map((c) => `<div class="bar" style="--c:var(--bad)"><span class="ltr" style="text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.name)}</span><span class="tr"><span class="fl" style="width:${Math.min(100, (-c.left / Math.max(...exp.map((x) => -x.left))) * 100)}%"></span></span><span class="v num">${-c.left}</span></div>`).join("") || '<p class="hint">لا بطاقات منتهية.</p>'}</div>${exp.length > 14 ? `<p class="meta"><a href="${link("safety", "expired")}">عرض الـ ${exp.length} كلها</a></p>` : ""}</div>
-        <div class="panel"><h3>متى تنتهي السارية؟</h3><p class="hint">عدد البطاقات التي ينتهي سريانها كل شهر، لتعرف متى يزدحم التجديد.</p><div class="bars">${b.map((x, i) => `<div class="bar" style="--c:${i < 1 ? "var(--volt)" : "var(--ink)"}"><span>${x.l}</span><span class="tr"><span class="fl" style="width:${(x.v / mx) * 100}%"></span></span><span class="v num">${x.v}</span></div>`).join("")}</div></div></div>`;
-    } else if (tab === "expired") body = cardTable(exp);
-    else if (tab === "soon") body = cardTable(soon);
-    else if (tab === "all") body = cardTable(rows);
-    else if (tab === "data") {
-      body = `<div class="panel"><h3>رفع ملف بطاقات السلامة</h3><p class="hint">الورقة الأولى من الملف: رقم الموظف، الاسم، الإقامة، بطاقة المقاول، SAP، تاريخ الانتهاء، الملاحظات. التواريخ مثل 21-November-26 تُقرأ كما هي.</p>
-        <div class="drop"><p style="margin:0 0 10px">اختر الملف</p><input type="file" id="cardFile" accept=".xlsx,.xls,.csv"></div><div id="cardPend"></div><p class="msg" id="cardMsg" role="status"></p></div>
-        <div class="panel section"><h3>تنزيل السجل</h3><p class="hint">${rows.length} بطاقة.</p><button class="btn" type="button" data-csv="cards">تنزيل CSV</button></div>`;
-    } else body = frame(p.url, "منصة بطاقات السلامة المنشورة");
-    view.innerHTML = appShell(p, tabs, tab, body);
-    if (tab === "data" && ui.pendCards) renderCardPend();
+  // تطبيق بطاقات السلامة نفسه المنشور مستقلاً على najran-safety-cards.netlify.app — يُركّب هنا داخل البوابة
+  let saInst = null;
+  function safetyApp(p) {
+    view.innerHTML = `<div class="app-head"><div><h1>${esc(p.name)}</h1><p>${esc(p.purpose)} · التطبيق نفسه يعمل داخل البوابة وعلى رابطه المستقل، والبيانات واحدة.</p></div>
+      <a class="btn" href="${esc(p.url)}" target="_blank" rel="noopener">افتح المنصة في نافذة جديدة</a></div><div id="saMount" style="margin-top:18px"></div>`;
+    saInst = SafetyApp.mount($("#saMount"), { api: "/api/data", seed: S.cards, onChange: (v) => { S.cards = v; U.ls.set("cards", v); U.ls.set("ctxAt", 0); HUB.pushContext(); E = HUB.evaluateAll(); } });
   }
   const CMAP = { emp: /^emp/, name: /name|الاسم/, iqama: /iqama|الإقامة|الاقامة/, badge: /badge|بطاقةالمقاول/, sap: /^sap/, exp: /expiry|انتهاء/, remark: /remark|ملاحظ/ };
   function parseCardDate(v) {
@@ -364,7 +340,7 @@
     $("#crumb").textContent = r.name === "app" ? reg(r.app).name : r.name === "settings" ? "إعدادات البوابة" : "الصفحة الرئيسية";
     if (r.name === "home") home();
     else if (r.name === "settings") settings();
-    else { const p = reg(r.app); if (p.kind === "linked") linkedApp(p, r.tab); else if (p.id === "licenses") licensesApp(p, r.tab); else safetyApp(p, r.tab); }
+    else { const p = reg(r.app); if (p.kind === "linked") linkedApp(p, r.tab); else if (p.id === "licenses") licensesApp(p, r.tab); else safetyApp(p); }
     $("#side").classList.remove("open"); $("#menuBtn").setAttribute("aria-expanded", "false");
   }
   let lastApp = null;

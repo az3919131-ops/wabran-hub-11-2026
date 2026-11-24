@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>بطاقات السلامة نجران</title>
+<meta name="description" content="بطاقات السلامة (هويات SCECO) لعمال الوبران فرع نجران: المنتهية والقريبة من الانتهاء، تقارير بالفلترة والتصدير.">
+<meta name="theme-color" content="#13262F">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alexandria:wght@500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap">
+<style>
+:root {
+  --ink: #13262F;
+  --ink-2: #1D3540;
+  --on-ink: #E9EFEC;
+  --on-ink-2: #9FB2B3;
+  --ground: #EEF1EF;
+  --panel: #FFFFFF;
+  --text: #13262F;
+  --muted: #56686D;
+  --line: #D3DAD7;
+  --soft: #F5F7F6;
+  --mud: #8C5B3F;
+  --mud-2: #B98B66;
+  --volt: #E3A21A;
+  --bad: #B8332A;  --bad-bg: #F7DEDA;
+  --warn: #9A5C00; --warn-bg: #FAEBCB;
+  --ok: #1D7350;   --ok-bg: #D8EEE3;
+  --none: #8A979A; --none-bg: #E6EBEA;
+  --f-head: "Alexandria", "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans Arabic", system-ui, "Segoe UI", Tahoma, sans-serif;
+  --r-s: 4px; --r-m: 8px;
+  --side: 268px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #0B171D; --ink-2: #14252D; --on-ink: #E3EAE7; --on-ink-2: #8EA2A4;
+    --ground: #101D23; --panel: #172830; --text: #E3EAE7; --muted: #9AABAE; --line: #2A3F48; --soft: #1C3039;
+    --mud: #C9946D; --mud-2: #8E6446; --volt: #F0B43A;
+    --bad: #FF8C80; --bad-bg: #3B1E1C; --warn: #F2B85A; --warn-bg: #3A2C12; --ok: #6FD3A2; --ok-bg: #12342A;
+    --none: #7F8F92; --none-bg: #22343B; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ink: #0B171D; --ink-2: #14252D; --on-ink: #E3EAE7; --on-ink-2: #8EA2A4;
+  --ground: #101D23; --panel: #172830; --text: #E3EAE7; --muted: #9AABAE; --line: #2A3F48; --soft: #1C3039;
+  --mud: #C9946D; --mud-2: #8E6446; --volt: #F0B43A;
+  --bad: #FF8C80; --bad-bg: #3B1E1C; --warn: #F2B85A; --warn-bg: #3A2C12; --ok: #6FD3A2; --ok-bg: #12342A;
+  --none: #7F8F92; --none-bg: #22343B; color-scheme: dark;
+}
+
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ground); color: var(--text); font: 15px/1.7 var(--f-body); }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--volt); outline-offset: 2px; }
+.top { background: var(--ink); color: var(--on-ink); }
+.top .in { max-width: 1240px; margin: 0 auto; padding: 14px 16px; display: flex; gap: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.top b { display: block; font: 700 19px/1.3 var(--f-head); }
+.top span { font-size: 13px; color: var(--on-ink-2); }
+.top a { color: var(--on-ink); border: 1px solid var(--ink-2); border-radius: 8px; padding: 6px 12px; text-decoration: none; font-size: 14px; }
+.tape { height: 6px; background: repeating-linear-gradient(-45deg, var(--volt) 0 10px, var(--ink) 10px 20px); }
+main { max-width: 1240px; margin: 0 auto; padding: 22px 16px; }
+h1 { font: 700 clamp(24px, 3vw, 32px)/1.3 var(--f-head); margin: 0 0 4px; }
+.sub { color: var(--muted); margin: 0 0 18px; }
+footer { text-align: center; padding: 18px; border-top: 1px solid var(--line); color: var(--muted); font: 500 13.5px var(--f-head); direction: ltr; }
+.btn { display: inline-flex; gap: 6px; align-items: center; justify-content: center; border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: var(--r-m); padding: 8px 16px; cursor: pointer; font-weight: 500; text-decoration: none; font-size: 14px; }
+.btn:hover { border-color: var(--text); }
+.btn.pri { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.btn.sm { padding: 3px 12px; font-size: 13px; }
+.btn:disabled { opacity: .5; cursor: default; }
+.chip { border: 1px solid var(--line); background: var(--panel); border-radius: 99px; padding: 3px 12px; font-size: 13px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.pill { display: inline-block; border-radius: 99px; padding: 0 10px; font-size: 12.5px; font-weight: 500; white-space: nowrap; }
+.p-bad { background: var(--bad-bg); color: var(--bad); } .p-warn { background: var(--warn-bg); color: var(--warn); } .p-ok { background: var(--ok-bg); color: var(--ok); } .p-none { background: var(--none-bg); color: var(--muted); }
+.count { font-size: 12px; background: var(--soft); border: 1px solid var(--line); border-radius: 99px; padding: 0 8px; color: var(--muted); }
+.note { background: var(--warn-bg); color: var(--warn); border-radius: var(--r-m); padding: 9px 14px; font-size: 14px; margin-bottom: 16px; }
+</style>
+<link rel="stylesheet" href="safety-app.css">
+</head>
+<body>
+<header class="top"><div class="in"><div><b>بطاقات السلامة · نجران</b><span>الوبران — هويات SCECO للعمال</span></div><a href="https://wabran-najran-hub.netlify.app/#/app/safety">فتح داخل منصة الوبران</a></div></header>
+<div class="tape" aria-hidden="true"></div>
+<main><h1>بطاقات السلامة</h1><p class="sub">المنتهية والقريبة من الانتهاء، وتقارير بأي فلتر مع التصدير إلى Excel أو CSV أو الطباعة. البيانات مشتركة مع منصة الوبران.</p><div id="app"></div></main>
+<footer>Project Manager | Eng. Ahmed Zahran</footer>
+<script src="xlsx.full.min.js"></script>
+<script>window.XLSX||document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"><\/script>')</script>
+<script src="safety-app.js"></script>
+<script>
+  // إن جاء الطلب من البوابة نفسها (المعاينة المحلية) تُستخدم القاعدة المحلية، وإلا قاعدة البوابة المنشورة
+  var API = location.hostname === "localhost" && location.port === "8767" ? "http://localhost:8765/api/data" : "https://wabran-najran-hub.netlify.app/api/data";
+  SafetyApp.mount(document.getElementById("app"), { api: API, seed: { asof: "", rows: [] } });
+</script>
+</body>
+</html>
