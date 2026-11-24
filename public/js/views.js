@@ -835,6 +835,12 @@
     $("#settingsBtn").textContent = hasCap("users") ? "إدارة البوابة والصلاحيات" : "حسابي";
     $("#userBox").innerHTML = `<b>${esc(user.name)}</b><span>${esc(user.roleLabel)}</span><button type="button" data-logout>تسجيل الخروج</button>`;
     if (!hasCap("assistant")) { const ab = $("#askBtn"); if (ab) ab.hidden = true; }
+    // تجهيز ملفات منصة الفواتير مسبقاً في المتصفح (تُخزَّن سنة) فتفتح فوراً عند الضغط عليها
+    if ((user.access.invoices || "none") !== "none") setTimeout(() => {
+      const I = "https://najran-invoice-intelligence.netlify.app/assets/";
+      ["index-hSWEfqZl.js", "react-CzPyxE80.js", "charts-B2dGYJMf.js", "supabase-34S9942t.js", "index-B20oySsw.css", "ExecutivePage-W8q8Jexq.js", "OverviewPage-B-za2wa0.js", "PageShell-D1T_W-OT.js", "ExecBlocks-TM9XDxDJ.js", "Charts-DEkPdR8l.js", "insights-R0Zx6vml.js", "series-plh3BxS7.js"]
+        .forEach((f) => { const l = document.createElement("link"); l.rel = "prefetch"; l.href = I + f; l.crossOrigin = "anonymous"; document.head.appendChild(l); });
+    }, 2500);
     view.innerHTML = `<div class="empty">جارٍ تحميل بيانات الفرع…</div>`;
     await HUB.loadAll();
     $("#syncTxt").textContent = Store.online ? "متصل بقاعدة البيانات المشتركة" : "وضع محلي: الحفظ على هذا الجهاز";
