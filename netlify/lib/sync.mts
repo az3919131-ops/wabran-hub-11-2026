@@ -62,6 +62,22 @@ const isoDMY = (v: any) => {
 };
 const num = (v: any) => (v == null || v === "" || isNaN(Number(v)) ? null : Number(v));
 const txt = (v: any) => (v == null ? "" : String(v).replace(/\s+/g, " ").trim());
+// خطة التحصيل (أول جدول في ورقة «خطة تحصيل محتملة»): مراحل التحصيل بقيمها ومشاريعها
+function collectionsFrom(rep: any) {
+  const b = rep.collections_data?.blocks?.[0];
+  if (!b) return null;
+  const cols = (b.columns || []).filter((c: any) => /مرحلة/.test(String(c.label || "")));
+  const clean = (t: any) => String(t || "").replace(/\s+/g, " ").trim();
+  const n = (v: any) => (typeof v === "number" && isFinite(v) ? v : 0);
+  const rows = (b.rows || []).filter((r: any) => /^\d{6,}$/.test(String(r.cells?.B ?? "").trim())).map((r: any) => {
+    const c = r.cells || {}; const st: Record<string, number> = {};
+    cols.forEach((x: any) => { if (n(c[x.col])) st[x.col] = n(c[x.col]); });
+    return { wo: String(c.B), name: clean(c.C), partial: n(c.D), stages: st, note: clean(c.J), gis: clean(c.K) };
+  });
+  const stages = cols.map((x: any) => ({ col: x.col, label: clean(x.label), total: rows.reduce((t: number, r: any) => t + (r.stages[x.col] || 0), 0), count: rows.filter((r: any) => r.stages[x.col]).length }));
+  return { title: clean(b.title), stages, rows, total: stages.reduce((t: number, s: any) => t + s.total, 0) };
+}
+
 export function bigProjectsFrom(rep: any) {
   const pj = rep.projects_data || {};
   const rows = (pj.rows || []).filter((r: any) => /^\d{6,}$/.test(String(r.cells?.B ?? "").trim())).map((r: any) => {
@@ -75,7 +91,7 @@ export function bigProjectsFrom(rep: any) {
       remaining: txt(c.R), finished: txt(c.S), uds: txt(c.T),
     };
   });
-  return { asof: rep.report_date || new Date().toISOString().slice(0, 10), source: rep.file_name || "najran-projects-dashboard", uploadedAt: rep.uploaded_at || null, title: pj.title || "", rows };
+  return { asof: rep.report_date || new Date().toISOString().slice(0, 10), source: rep.file_name || "najran-projects-dashboard", uploadedAt: rep.uploaded_at || null, title: pj.title || "", rows, collections: collectionsFrom(rep) };
 }
 
 // تحديث فوري لمنصة المشاريع الكبيرة من آخر تقرير مرفوع (عند فتحها في البوابة)
@@ -86,7 +102,7 @@ export async function syncBigProjects() {
   if (!Array.isArray(list) || !list.length) throw new Error("لا توجد تقارير مرفوعة في منصة المشاريع الكبيرة");
   const latest = list.slice().sort((a: any, b: any) => String(b.report_date + b.uploaded_at).localeCompare(String(a.report_date + a.uploaded_at)))[0];
   const cur: any = await store.get("ds_bigprojects", { type: "json" });
-  if (cur && cur.uploadedAt && cur.uploadedAt === latest.uploaded_at && cur.rows?.[0] && "paid" in cur.rows[0]) return { asof: cur.asof, changed: false };
+  if (cur && cur.uploadedAt && cur.uploadedAt === latest.uploaded_at && cur.rows?.[0] && "paid" in cur.rows[0] && cur.collections) return { asof: cur.asof, changed: false };
   const ds: any = bigProjectsFrom(await getJSON(B + "?id=" + encodeURIComponent(latest.id)));
   if (!ds.rows.length) throw new Error("التقرير بلا صفوف");
   ds.syncedAt = new Date().toISOString();

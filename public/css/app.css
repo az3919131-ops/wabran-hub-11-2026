@@ -463,3 +463,14 @@ body.auth-mode { display: block; }
 .tabs [role="tab"][aria-selected="true"] { color: var(--energy-navy); border-bottom-color: var(--energy-orange); }
 :root[data-theme="dark"] .tabs [role="tab"][aria-selected="true"] { color: var(--text); }
 @media (max-width: 760px) { .app-head.nj-band { padding: 16px; min-height: 130px; } }
+/* خطة التحصيل — المشاريع الكبيرة */
+.pk-grid.bp5{grid-template-columns:repeat(5,minmax(0,1fr))}
+.pk-grid.bp5 .pk-v{font-size:28px}
+.bp-donut{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.bp-donut svg{width:200px;height:200px;flex:none;color:var(--text)}
+.bp-donut ul{list-style:none;margin:0;padding:0;display:grid;gap:8px;font-size:13px;flex:1;min-width:200px}
+.bp-donut li{display:flex;align-items:center;gap:8px}.bp-donut li b{margin-inline-start:auto;font-variant-numeric:tabular-nums}
+.bp-donut i{width:12px;height:12px;border-radius:3px;flex:none}
+tr.tot td{background:var(--soft)}
+@media (max-width:1100px){.pk-grid.bp5{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:760px){.pk-grid.bp5{grid-template-columns:1fr 1fr}}

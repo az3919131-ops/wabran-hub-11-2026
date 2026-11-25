@@ -233,6 +233,41 @@
     exportReport(kind, { title: p.name, desc, head, rows, count: A.W(list), file: p.id });
   }
 
+  /* خطة التحصيل (من ورقة «خطة تحصيل محتملة» في تقرير المشاريع الكبيرة) — نفس تحليل المنصة الأصلية */
+  function bpCollections(ds) {
+    const C = ds.collections;
+    if (!C || !C.stages || !C.stages.length) return `<div class="note">خطة التحصيل تظهر بعد تحديث البيانات من آخر تقرير مرفوع في المنصة الأصلية.</div>`;
+    const col = (l) => (/رابعة|موازنة/.test(l) ? "#F59E0B" : /ثالثة|ثانثة|اصدار|إصدار/.test(l) ? "#0F2537" : "#10B981");
+    const mil = (v) => (v / 1e6).toFixed(2);
+    const st = C.stages;
+    const cards = st.map((x) => `<div class="pk" style="--c:${col(x.label)}"><span class="pk-t">${esc(x.label)}</span><b class="pk-v">${mil(x.total)}<small>مليون</small></b><span class="pk-s">ر.س · ${x.count} مشروع</span></div>`).join("");
+    // أعمدة المقارنة
+    const W = 640, H = 330, L = 64, R = 12, T = 30, B = 70, mx = Math.max(1, ...st.map((x) => x.total)) * 1.12, bw = (W - L - R) / st.length;
+    const y = (v) => T + (H - T - B) * (1 - v / mx);
+    const grid = [0, 0.25, 0.5, 0.75, 1].map((f) => (mx / 1.12) * f).map((v) => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="currentColor" stroke-opacity=".12" stroke-dasharray="3 3"/><text x="${L - 8}" y="${y(v) + 4}" font-size="13" text-anchor="end" fill="currentColor" fill-opacity=".6">${v ? Math.round(v / 1e6) + " م" : 0}</text>`).join("");
+    const two = (l) => { const w = l.replace(/[()]/g, "").split(" ").filter(Boolean); const a = w.slice(0, 2).join(" "), b = w.slice(2).join(" "); return [a, b.length > 15 ? b.slice(0, 14) + "…" : b]; };
+    const bars = st.map((x, i) => { const k = st.length - 1 - i, bx = L + k * bw + bw * 0.14, w = bw * 0.72, cx = bx + w / 2, [l1, l2] = two(x.label);
+      return `<g><title>${esc(x.label)}: ${U.fmt(Math.round(x.total))} ر.س · ${x.count} مشروع</title><rect x="${bx}" y="${y(x.total)}" width="${w}" height="${Math.max(0, H - B - y(x.total))}" rx="4" fill="${col(x.label)}"/>` +
+        `<text x="${cx}" y="${y(x.total) - 8}" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor">${mil(x.total)}</text>` +
+        `<text x="${cx}" y="${H - B + 22}" text-anchor="middle" font-size="12.5" font-weight="600" fill="currentColor">${esc(l1)}</text><text x="${cx}" y="${H - B + 40}" text-anchor="middle" font-size="11.5" fill="currentColor" fill-opacity=".7">${esc(l2)}</text></g>`; }).join("");
+    const chart = `<svg viewBox="0 0 ${W} ${H}" class="sch-svg" role="img" aria-label="مقارنة قيم مراحل التحصيل (مليون ريال)">${grid}${bars}</svg><p class="hint" style="margin-top:4px">القيم بالمليون ريال، والمراحل من اليمين: الأولى ثم التالية.</p>`;
+    // توزيع القيم (حلقة)
+    const tot = st.reduce((t, x) => t + x.total, 0) || 1; let a0 = -Math.PI / 2;
+    const arcs = st.map((x) => { const a1 = a0 + (x.total / tot) * Math.PI * 2, r = 80, r2 = 50, cx = 100, cy = 100;
+      const p = (a, rr) => `${cx + rr * Math.cos(a)} ${cy + rr * Math.sin(a)}`, big = a1 - a0 > Math.PI ? 1 : 0;
+      const d = `M${p(a0, r)} A${r} ${r} 0 ${big} 1 ${p(a1, r)} L${p(a1, r2)} A${r2} ${r2} 0 ${big} 0 ${p(a0, r2)}Z`; a0 = a1;
+      return `<path d="${d}" fill="${col(x.label)}" stroke="var(--panel,#fff)" stroke-width="2"><title>${esc(x.label)}: ${((x.total / tot) * 100).toFixed(1)}%</title></path>`; }).join("");
+    const donut = `<div class="bp-donut"><svg viewBox="0 0 200 200" role="img" aria-label="توزيع قيم مراحل التحصيل">${arcs}<text x="100" y="96" text-anchor="middle" font-size="20" font-weight="700" fill="currentColor">${mil(tot)}</text><text x="100" y="118" text-anchor="middle" font-size="11" fill="currentColor" fill-opacity=".65">مليون ر.س</text></svg>
+      <ul>${st.map((x) => `<li><i style="background:${col(x.label)}"></i>${esc(x.label)}<b>${((x.total / tot) * 100).toFixed(1)}%</b></li>`).join("")}</ul></div>`;
+    const tbl = `<div class="tbl"><table><thead><tr><th>رقم أمر العمل</th><th>اسم المشروع</th>${st.map((x) => `<th>${esc(x.label)}</th>`).join("")}<th>موقف وملاحظات</th><th>موقف GIS</th></tr></thead><tbody>
+      ${C.rows.map((r) => `<tr><td class="num">${esc(r.wo)}</td><td>${esc(r.name)}</td>${st.map((x) => `<td class="num">${r.stages[x.col] ? U.fmt(Math.round(r.stages[x.col])) : ""}</td>`).join("")}<td>${esc(r.note)}</td><td>${esc(r.gis)}</td></tr>`).join("")}
+      <tr class="tot"><td colspan="2"><b>الإجمالي</b></td>${st.map((x) => `<td class="num"><b>${U.fmt(Math.round(x.total))}</b></td>`).join("")}<td colspan="2"></td></tr></tbody></table></div>`;
+    return `<section class="section"><div class="pk-head"><h2>خطة التحصيل</h2><span>${esc(C.title)} · إجمالي ${U.fmt(Math.round(C.total))} ر.س</span></div>
+      <div class="pk-grid bp5">${cards}</div>
+      <div class="section two"><div class="panel"><h3>مقارنة قيم مراحل التحصيل</h3>${chart}</div><div class="panel"><h3>توزيع القيم حسب المرحلة</h3>${donut}</div></div>
+      <section class="section"><h3>مشاريع خطة التحصيل (${C.rows.length})</h3>${tbl}</section></section>`;
+  }
+
   /* المؤشرات الرئيسية لمنصة المشاريع الكبيرة — نفس بطاقات المنصة الأصلية ومعادلاتها */
   function bpKpis(A, ds) {
     const rows = A.rows, has = (f) => rows.filter((r) => r[f] != null && r[f] !== ""), sum = (f) => rows.reduce((t, r) => t + (Number(r[f]) || 0), 0);
@@ -602,7 +637,7 @@
           return `<section class="section panel"><h3>عمر ${p.id === "invoices" ? "الفواتير غير المحصّلة" : "الأوامر المفتوحة"}</h3><p class="hint">محسوب من ${esc(s.cols[s.dateKey].label)}${noDate ? ` · ${noDate} بلا تاريخ` : ""}.</p>${barList(g.map((x, i) => ({ l: x.l + (x.amt != null ? " · " + money(x.amt) + " ريال" : ""), v: x.n, c: i === 0 ? "var(--ok)" : i === 1 ? "var(--volt)" : "var(--bad)" })), mx)}</section>`;
         })() : "");
     } else if (tab === "analysis") {
-      body = stale + A.dims.map((d) => `<section class="section"><h2>حسب ${esc(d.label)}</h2><div class="tbl"><table><thead><tr><th>${esc(d.label)}</th><th>الإجمالي</th><th>منجز</th><th>مفتوح</th><th>متأخر</th><th>نسبة الإنجاز</th>${A.s.amountKey ? "<th>القيمة (ريال)</th>" : ""}</tr></thead><tbody>
+      body = stale + (p.id === "bigprojects" ? bpCollections(ds) : "") + A.dims.map((d) => `<section class="section"><h2>حسب ${esc(d.label)}</h2><div class="tbl"><table><thead><tr><th>${esc(d.label)}</th><th>الإجمالي</th><th>منجز</th><th>مفتوح</th><th>متأخر</th><th>نسبة الإنجاز</th>${A.s.amountKey ? "<th>القيمة (ريال)</th>" : ""}</tr></thead><tbody>
         ${d.groups.map((g) => `<tr><td>${esc(g.name)}</td><td class="num">${g.total}</td><td class="num">${g.done}</td><td class="num">${g.total - g.done}</td><td class="num">${g.late ? `<span class="pill p-bad">${g.late}</span>` : 0}</td><td class="num">${Math.round((g.done / g.total) * 100)}%</td>${A.s.amountKey ? `<td class="num">${money(g.amt)}</td>` : ""}</tr>`).join("")}</tbody></table></div></section>`).join("") || `<div class="empty">لا توجد أعمدة تحليل في الملف (${A.s.dims.map((d) => d[1]).join("، ")}).</div>`;
     } else if (tab === "late") body = stale + (A.late.length ? `<div class="panel">${expBar("المتأخرة: " + (A.s.slaText || "تجاوزت موعدها"), A.W(A.late), "data-dlexp")}</div>` + recTable(A, A.late) : `<div class="panel empty"><h3>لا متأخرات</h3><p>كل السجلات المفتوحة ضمن موعدها.</p></div>`);
     else {
