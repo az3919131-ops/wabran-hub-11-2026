@@ -139,7 +139,7 @@
   }
 
   function appShell(p, tabs, tab, body) {
-    return `<div class="app-head"><div>${BACK}<h1>${esc(p.name)}</h1><p>${esc(p.purpose)}</p></div>
+    return `<div class="app-head nj-band">${window.NJ ? NJ.scene("band") : ""}<div>${BACK}<h1>${esc(p.name)}</h1><p>${esc(p.purpose)}</p></div>
       ${p.url ? openBtns(p) : ""}</div>
       <div class="tabs" role="tablist">${tabs.map((t) => `<button role="tab" type="button" data-go="${link(p.id, t[0])}" aria-selected="${t[0] === tab}">${t[1]}${t[2] != null ? ` <span class="count num">${t[2]}</span>` : ""}</button>`).join("")}</div>
       <div role="tabpanel">${body}</div>`;
@@ -721,7 +721,7 @@
   // تطبيق بطاقات السلامة نفسه المنشور مستقلاً على najran-safety-cards.netlify.app — يُركّب هنا داخل البوابة
   let saInst = null;
   function safetyApp(p) {
-    view.innerHTML = `<div class="app-head"><div>${BACK}<h1>${esc(p.name)}</h1><p>${esc(p.purpose)} · التطبيق نفسه يعمل داخل البوابة وعلى رابطه المستقل، والبيانات واحدة.</p></div>
+    view.innerHTML = `<div class="app-head nj-band">${window.NJ ? NJ.scene("band") : ""}<div>${BACK}<h1>${esc(p.name)}</h1><p>${esc(p.purpose)} · التطبيق نفسه يعمل داخل البوابة وعلى رابطه المستقل، والبيانات واحدة.</p></div>
       ${openBtns(p)}</div><div id="saMount" style="margin-top:18px"></div>`;
     saInst = SafetyApp.mount($("#saMount"), { api: "/api/data", seed: S.cards, headers: () => HUB.Auth.headers(), canEdit: canEditP("safety"), canExport: canExpP("safety"), onChange: (v) => { S.cards = v; U.ls.set("cards", v); U.ls.set("ctxAt", 0); HUB.pushContext(); E = HUB.evaluateAll(); } });
   }
@@ -825,7 +825,7 @@
   /* ---------- الإعدادات ---------- */
   function settings() {
     const u = HUB.user, isAdmin = hasCap("users");
-    view.innerHTML = `<div class="app-head"><div>${BACK}<h1>إدارة البوابة</h1><p>${isAdmin ? "الحسابات والصلاحيات لكل منصات الوبران — حساب واحد لكل المنصات." : "حسابك في منصة الوبران."}</p></div></div>
+    view.innerHTML = `<div class="app-head nj-band">${window.NJ ? NJ.scene("band") : ""}<div>${BACK}<h1>إدارة البوابة</h1><p>${isAdmin ? "الحسابات والصلاحيات لكل منصات الوبران — حساب واحد لكل المنصات." : "حسابك في منصة الوبران."}</p></div></div>
       <div class="section two"><div class="panel"><h3>حسابي</h3><p class="hint">${esc(u.name)} · <span class="ltr">${esc(u.email)}</span> · ${esc(u.roleLabel)}</p>
         <form class="form" id="cpForm"><label class="f">كلمة المرور الحالية<input type="password" id="cpCur" required dir="ltr" autocomplete="current-password"></label><label class="f">كلمة المرور الجديدة<input type="password" id="cpNew" minlength="6" required dir="ltr" autocomplete="new-password"></label><div><button class="btn pri" type="submit">تغيير كلمة المرور</button></div></form>
         <p class="msg" id="cpMsg" role="status"></p><button class="btn" type="button" data-logout>تسجيل الخروج</button>

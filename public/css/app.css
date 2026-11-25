@@ -448,3 +448,18 @@ body.auth-mode { display: block; }
   .nj-scene path[stroke="#F37021"] { stroke-dasharray: 6 5; animation: nj-flow 3.2s linear infinite; }
   @keyframes nj-flow { to { stroke-dashoffset: -22; } }
 }
+
+/* رأس كل منصة داخلية: شريط من مشهد نجران والطاقة بنفس هوية البانر الرئيسي */
+.app-head.nj-band { position: relative; overflow: hidden; isolation: isolate; background: #0F2537; border-radius: 16px; padding: 20px 26px 22px; min-height: 150px; align-items: flex-end; margin-bottom: 6px; }
+.app-head.nj-band .nj-scene { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; }
+.app-head.nj-band::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(270deg, rgba(15,37,55,.82) 0%, rgba(15,37,55,.45) 55%, rgba(15,37,55,.1) 100%); }
+.app-head.nj-band h1 { color: #fff; text-shadow: 0 1px 12px rgba(15,37,55,.6); }
+.app-head.nj-band p { color: #D7E1EA; }
+.app-head.nj-band .back-home { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.28); color: #fff; }
+.app-head.nj-band .back-home:hover { background: rgba(255,255,255,.2); }
+.app-head.nj-band .btn:not(.pri):not(.back-home) { background: rgba(255,255,255,.94); border-color: transparent; color: var(--energy-navy); }
+.app-head.nj-band .btn.pri { box-shadow: 0 4px 14px rgba(243,112,33,.35); }
+.tabs { margin-top: 10px; }
+.tabs [role="tab"][aria-selected="true"] { color: var(--energy-navy); border-bottom-color: var(--energy-orange); }
+:root[data-theme="dark"] .tabs [role="tab"][aria-selected="true"] { color: var(--text); }
+@media (max-width: 760px) { .app-head.nj-band { padding: 16px; min-height: 130px; } }

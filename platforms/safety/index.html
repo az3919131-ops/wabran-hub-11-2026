@@ -5,49 +5,55 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>بطاقات السلامة نجران</title>
 <meta name="description" content="بطاقات السلامة (هويات SCECO) لعمال الوبران فرع نجران: المنتهية والقريبة من الانتهاء، تقارير بالفلترة والتصدير.">
-<meta name="theme-color" content="#13262F">
+<meta name="theme-color" content="#0F2537">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alexandria:wght@500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
 <style>
+/* الهوية: wabran-najran-energy-ui — كحلي الطاقة، برتقالي الطاقة، رمل نجران */
 :root {
-  --ink: #13262F;
-  --ink-2: #1D3540;
-  --on-ink: #E9EFEC;
-  --on-ink-2: #9FB2B3;
-  --ground: #EEF1EF;
+  --energy-orange: #F37021; --energy-orange-hover: #D95E16; --energy-navy: #0F2537;
+  --wabran-slate: #1E293B; --wabran-steel: #475569;
+  --najran-sand: #C89B6E; --najran-clay-soft: #F7F3EE;
+  --ink: #0F2537;
+  --ink-2: #1A3550;
+  --on-ink: #EEF2F6;
+  --on-ink-2: #9DB0C3;
+  --ground: #F8FAFC;
   --panel: #FFFFFF;
-  --text: #13262F;
-  --muted: #56686D;
-  --line: #D3DAD7;
-  --soft: #F5F7F6;
-  --mud: #8C5B3F;
-  --mud-2: #B98B66;
-  --volt: #E3A21A;
-  --bad: #B8332A;  --bad-bg: #F7DEDA;
-  --warn: #9A5C00; --warn-bg: #FAEBCB;
-  --ok: #1D7350;   --ok-bg: #D8EEE3;
-  --none: #8A979A; --none-bg: #E6EBEA;
-  --f-head: "Alexandria", "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --text: #1E293B;
+  --muted: #475569;
+  --line: #E2E8F0;
+  --soft: #F7F3EE;
+  --mud: #9A6E44;
+  --mud-2: #C89B6E;
+  --volt: #F37021;
+  --bad: #C62B22;  --bad-bg: #FDE4E2;
+  --warn: #A15C00; --warn-bg: #FEF0D6;
+  --ok: #057A55;   --ok-bg: #D9F5EA;
+  --none: #64748B; --none-bg: #EEF2F6;
+  --st-done: #10B981; --st-progress: #0EA5E9; --st-pending: #F59E0B; --st-delayed: #EF4444;
+  --f-head: "IBM Plex Sans Arabic", system-ui, "Segoe UI", Tahoma, sans-serif;
   --f-body: "IBM Plex Sans Arabic", system-ui, "Segoe UI", Tahoma, sans-serif;
-  --r-s: 4px; --r-m: 8px;
+  --r-s: 6px; --r-m: 10px;
   --side: 268px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --ink: #0B171D; --ink-2: #14252D; --on-ink: #E3EAE7; --on-ink-2: #8EA2A4;
-    --ground: #101D23; --panel: #172830; --text: #E3EAE7; --muted: #9AABAE; --line: #2A3F48; --soft: #1C3039;
-    --mud: #C9946D; --mud-2: #8E6446; --volt: #F0B43A;
-    --bad: #FF8C80; --bad-bg: #3B1E1C; --warn: #F2B85A; --warn-bg: #3A2C12; --ok: #6FD3A2; --ok-bg: #12342A;
-    --none: #7F8F92; --none-bg: #22343B; color-scheme: dark;
+    --ink: #0A1A28; --ink-2: #15304A; --on-ink: #E6EDF4; --on-ink-2: #8FA4B8;
+    --ground: #0D1B29; --panel: #13263A; --text: #E6EDF4; --muted: #A3B4C5; --line: #24405C; --soft: #182E44;
+    --mud: #D9B08A; --mud-2: #A97B52; --volt: #FF8A45;
+    --bad: #FF8C80; --bad-bg: #3B1E1C; --warn: #F7B955; --warn-bg: #3A2C12; --ok: #4ADE9F; --ok-bg: #10342A;
+    --none: #8FA0B2; --none-bg: #1E3348; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --ink: #0B171D; --ink-2: #14252D; --on-ink: #E3EAE7; --on-ink-2: #8EA2A4;
-  --ground: #101D23; --panel: #172830; --text: #E3EAE7; --muted: #9AABAE; --line: #2A3F48; --soft: #1C3039;
-  --mud: #C9946D; --mud-2: #8E6446; --volt: #F0B43A;
-  --bad: #FF8C80; --bad-bg: #3B1E1C; --warn: #F2B85A; --warn-bg: #3A2C12; --ok: #6FD3A2; --ok-bg: #12342A;
-  --none: #7F8F92; --none-bg: #22343B; color-scheme: dark;
+  --ink: #0A1A28; --ink-2: #15304A; --on-ink: #E6EDF4; --on-ink-2: #8FA4B8;
+  --ground: #0D1B29; --panel: #13263A; --text: #E6EDF4; --muted: #A3B4C5; --line: #24405C; --soft: #182E44;
+  --mud: #D9B08A; --mud-2: #A97B52; --volt: #FF8A45;
+  --bad: #FF8C80; --bad-bg: #3B1E1C; --warn: #F7B955; --warn-bg: #3A2C12; --ok: #4ADE9F; --ok-bg: #10342A;
+  --none: #8FA0B2; --none-bg: #1E3348; color-scheme: dark;
 }
+
 
 
 * { box-sizing: border-box; }
