@@ -119,7 +119,10 @@
   /* ---------- رأس التطبيق والتبويبات ---------- */
   const BACK = `<a class="btn back-home" href="#/" aria-label="رجوع للصفحة الرئيسية">→ الرئيسية</a>`;
   // فتح المنصة الأصلية داخل إطار منصة الوبران (شريط علوي برجوع للرئيسية) أو مستقلة
-  const openBtns = (p) => `<span class="open-btns"><a class="btn pri" href="#/go/${p.id}">فتح المنصة كاملة</a><a class="btn" href="${esc(p.url)}" target="_blank" rel="noopener">فتح مستقل</a></span>`;
+  const openBtns = (p) => p.ownStorage
+    ? `<span class="open-btns"><a class="btn pri" href="${esc(p.url)}" target="_blank" rel="noopener">فتح المنصة ببياناتك ↗</a></span>`
+    : `<span class="open-btns"><a class="btn pri" href="#/go/${p.id}">فتح المنصة كاملة</a><a class="btn" href="${esc(p.url)}" target="_blank" rel="noopener">فتح مستقل</a></span>`;
+  const OWN_MSG = (p) => `<div class="panel empty own-store"><h3>${esc(p.name)} تُفتح في تبويب مستقل</h3><p>جداولك المحفوظة (المركبات والأفراد والمواقع والأيام السابقة) محفوظة في متصفحك على عنوان المنصة نفسها. عند عرضها داخل منصة الوبران يعطيها المتصفح مساحة تخزين منفصلة فارغة، لذلك تُفتح في تبويبها لتظهر بياناتك كاملة وتستمر مزامنتها مع منصة الوبران.</p><a class="btn pri" href="${esc(p.url)}" target="_blank" rel="noopener">فتح ${esc(p.short)} ببياناتك ↗</a></div>`;
 
   /* ---------- عرض المنصة كاملة داخل إطار الوبران: شريط علوي ثابت فيه الرجوع والتنقل ---------- */
   function goPage(p) {
@@ -133,7 +136,7 @@
       <select id="goSel" aria-label="التنقل بين المنصات">${others.map((x) => `<option value="${x.id}" ${x.id === p.id ? "selected" : ""}>${esc(x.name)}</option>`).join("")}</select>
       <a class="go-link" href="${esc(p.url)}" target="_blank" rel="noopener">فتح مستقل ↗</a>`;
     document.body.appendChild(bar);
-    view.innerHTML = p.noFrame
+    view.innerHTML = p.ownStorage ? `<div style="margin-top:70px">${OWN_MSG(p)}</div>` : p.noFrame
       ? `<div class="panel empty" style="margin-top:70px"><h3>${esc(p.name)} لا تسمح بالعرض داخل منصة أخرى</h3><p>المنصة الأصلية مضبوطة لمنع العرض داخل المواقع الأخرى، فتُفتح في تبويب مستقل. ارجع للرئيسية من هذا الشريط أو من زر الرجوع في المتصفح.</p><a class="btn pri" href="${esc(p.url)}" target="_blank" rel="noopener">فتح ${esc(p.short)} في تبويب جديد</a></div>`
       : `<iframe class="go-frame" src="${esc(p.url)}" title="${esc(p.name)}" referrerpolicy="no-referrer"></iframe>`;
   }
@@ -153,6 +156,7 @@
   });
   function frame(url, label) {
     const rp = REGISTRY.find((x) => x.url === url);
+    if (rp && rp.ownStorage) return OWN_MSG(rp);
     if (rp && rp.noFrame) return `<div class="panel empty"><h3>${esc(rp.name)} تمنع العرض داخل منصة أخرى</h3><p>المنصة الأصلية مضبوطة لمنع عرضها داخل المواقع الأخرى، فتُفتح في تبويب مستقل.</p><a class="btn pri" href="${esc(url)}" target="_blank" rel="noopener">فتح المنصة الأصلية</a></div>`;
     return `<div class="frame-wrap"><div class="frame-bar"><span>${esc(label)} معروضة من مصدرها كما هي. إن ظهرت فارغة فالمنصة تمنع العرض داخل صفحات أخرى.</span><a class="btn sm" href="${esc(url)}" target="_blank" rel="noopener">فتح مستقل</a></div>
       <iframe src="${esc(url)}" title="${esc(label)}" loading="lazy" referrerpolicy="no-referrer"></iframe></div>`;
