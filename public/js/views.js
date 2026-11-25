@@ -143,7 +143,7 @@
       <div role="tabpanel">${body}</div>`;
   }
   // المنصات المستقلة المرتبطة بالدخول الموحد (داخل أي إطار في البوابة) تطلب رمز الدخول، فيُرسل لنطاقها فقط
-  const SSO = new Set(["https://najran-safety-cards.netlify.app", "https://najran-dispatch-board.netlify.app", "https://wabran-licenses-platform.netlify.app", "https://najran-wabran-dor-dashboard.netlify.app"]);
+  const SSO = new Set(["https://najran-safety-cards.netlify.app", "https://najran-dispatch-board.netlify.app", "https://wabran-licenses-platform.netlify.app", "https://najran-wabran-dor-dashboard.netlify.app", "https://work-orders-control-center.netlify.app"]);
   window.addEventListener("message", (e) => {
     if (!SSO.has(e.origin) || !e.data || e.data.type !== "wabran-ready" || !e.source || !HUB.Auth.token) return;
     const fromFrame = [...document.querySelectorAll("iframe")].some((f) => f.contentWindow === e.source);

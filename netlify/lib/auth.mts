@@ -37,6 +37,7 @@ export const ORIGINS = new Set([
   "https://najran-dispatch-board.netlify.app",
   "https://wabran-licenses-platform.netlify.app",
   "https://najran-wabran-dor-dashboard.netlify.app",
+  "https://work-orders-control-center.netlify.app",
 ]);
 
 export function cors(req: Request): Record<string, string> {
