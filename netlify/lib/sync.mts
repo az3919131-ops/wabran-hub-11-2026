@@ -69,7 +69,9 @@ export function bigProjectsFrom(rep: any) {
     return {
       wo: String(c.B), type: txt(c.C), received: isoDMY(c.D), invoice: num(c.E), name: txt(c.F), status: txt(c.G) || "غير محدد",
       estCost: num(c.H), actCost: num(c.I), pct: c.J == null ? null : Math.round(Number(c.J) * 1000) / 10, delivered: isoDMY(c.K),
-      partial: num(c.L), certDate: isoDMY(c.M), final: num(c.N), extract: txt(c.O), payStatus: txt(c.P), materials: txt(c.Q),
+      // العمود L «قيمة الصرف (جزئي/نهائي)» يُوزَّع حسب «موقف صرف المستخلص» (P)؛ العمود N يُستخدم إن وُجدت فيه قيمة
+      partial: /جزئي/.test(txt(c.P)) ? num(c.L) : 0, certDate: isoDMY(c.M),
+      final: num(c.N) || (/نهائي/.test(txt(c.P)) ? num(c.L) : 0), paid: num(c.L), extract: txt(c.O), payStatus: txt(c.P), materials: txt(c.Q),
       remaining: txt(c.R), finished: txt(c.S), uds: txt(c.T),
     };
   });
