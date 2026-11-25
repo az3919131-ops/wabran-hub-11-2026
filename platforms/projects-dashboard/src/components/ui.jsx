@@ -5,15 +5,15 @@ import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis
 import { fmtM, fmtPct, isNum, cellText } from '../lib/analytics.js';
 
 export const TONES = {
-  green: { bg: 'bg-green-50', text: 'text-green-700', ring: 'ring-green-200', hex: '#16a34a' },
-  orange: { bg: 'bg-orange-50', text: 'text-orange-700', ring: 'ring-orange-200', hex: '#f97316' },
-  red: { bg: 'bg-red-50', text: 'text-red-700', ring: 'ring-red-200', hex: '#dc2626' },
-  blue: { bg: 'bg-cyan-50', text: 'text-petrol-700', ring: 'ring-cyan-200', hex: '#0f7489' },
-  navy: { bg: 'bg-slate-100', text: 'text-navy-900', ring: 'ring-slate-300', hex: '#12305a' },
+  green: { bg: 'bg-emerald-50', text: 'text-emerald-700', ring: 'ring-emerald-200', hex: '#10B981' },
+  orange: { bg: 'bg-amber-50', text: 'text-amber-700', ring: 'ring-amber-200', hex: '#F59E0B' },
+  red: { bg: 'bg-red-50', text: 'text-red-700', ring: 'ring-red-200', hex: '#EF4444' },
+  blue: { bg: 'bg-sky-50', text: 'text-sky-700', ring: 'ring-sky-200', hex: '#0EA5E9' },
+  navy: { bg: 'bg-slate-100', text: 'text-navy-900', ring: 'ring-slate-300', hex: '#0F2537' },
   slate: { bg: 'bg-slate-50', text: 'text-slate-600', ring: 'ring-slate-200', hex: '#94a3b8' },
   purple: { bg: 'bg-violet-50', text: 'text-violet-700', ring: 'ring-violet-200', hex: '#7c3aed' },
 };
-export const PALETTE = ['#12305a', '#0f7489', '#16a34a', '#f97316', '#38bdf8', '#7c3aed', '#dc2626', '#64748b', '#0d9488', '#eab308', '#1d4ed8', '#be185d'];
+export const PALETTE = ['#0F2537', '#F37021', '#C89B6E', '#0EA5E9', '#10B981', '#F59E0B', '#7c3aed', '#EF4444', '#64748b', '#16324A', '#D95E16', '#be185d'];
 
 export function Badge({ tone = 'slate', children, className = '' }) {
   const t = TONES[tone] || TONES.slate;
@@ -33,7 +33,7 @@ export function Kpi({ icon: Icon, label, value, sub, tone = 'navy', onClick, act
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="text-xs font-semibold text-slate-500">{label}</div>
-          <div className="mt-1 text-xl font-extrabold leading-tight text-navy-900 md:text-2xl">{value}</div>
+          <div className="mt-1 text-xl font-bold leading-tight text-navy-900 md:text-2xl">{value}</div>
           {sub && <div className="mt-1 text-[11px] text-slate-500">{sub}</div>}
         </div>
         {Icon && (
@@ -67,7 +67,7 @@ export function Progress({ value, className = '' }) {
   if (!isNum(value)) return <div className="text-xs text-slate-400">لا توجد نسبة</div>;
   const over = value > 1;
   const w = Math.max(0, Math.min(100, value * 100));
-  const color = over ? '#7c3aed' : value >= 1 ? '#16a34a' : value >= 0.75 ? '#0f7489' : value >= 0.5 ? '#f97316' : '#dc2626';
+  const color = over ? '#7c3aed' : value >= 1 ? '#10B981' : value >= 0.75 ? '#0F2537' : value >= 0.5 ? '#F59E0B' : '#EF4444';
   return (
     <div className={className}>
       <div className="mb-1 flex items-center justify-between text-xs">
@@ -180,7 +180,7 @@ export function Select({ label, value, onChange, options, all = 'الكل' }) {
   );
 }
 
-const tip = { contentStyle: { borderRadius: 12, border: '1px solid #e2e8f0', fontFamily: 'Cairo', fontSize: 12, direction: 'rtl' } };
+const tip = { contentStyle: { borderRadius: 12, border: '1px solid #e2e8f0', fontFamily: 'IBM Plex Sans Arabic', fontSize: 12, direction: 'rtl' } };
 
 /** دائري: data=[{name,value,color?}] */
 export function Donut({ data, onSelect, active, money, height = 240 }) {
@@ -201,7 +201,7 @@ export function Donut({ data, onSelect, active, money, height = 240 }) {
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
           <div>
-            <div className="text-lg font-extrabold text-navy-900">{money ? fmtM(total) : total}</div>
+            <div className="text-lg font-bold text-navy-900">{money ? fmtM(total) : total}</div>
             <div className="text-[10px] text-slate-500">{money ? 'ر.س' : 'الإجمالي'}</div>
           </div>
         </div>
@@ -235,21 +235,21 @@ export function Bars({ data, bars, onSelect, active, money, horizontal, height =
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
           {horizontal ? (
             <>
-              <XAxis type="number" tickFormatter={fmt} tick={{ fontSize: 11, fontFamily: 'Cairo' }} />
-              <YAxis type="category" dataKey="name" width={200} tick={{ fontSize: 11, fontFamily: 'Cairo' }} interval={0} tickFormatter={cut} />
+              <XAxis type="number" tickFormatter={fmt} tick={{ fontSize: 11, fontFamily: 'IBM Plex Sans Arabic' }} />
+              <YAxis type="category" dataKey="name" width={200} tick={{ fontSize: 11, fontFamily: 'IBM Plex Sans Arabic' }} interval={0} tickFormatter={cut} />
             </>
           ) : (
             <>
-              <XAxis dataKey="name" reversed tick={{ fontSize: 11, fontFamily: 'Cairo' }} interval={0} angle={tilt ? 30 : 0} textAnchor={tilt ? 'start' : 'middle'} height={tilt ? 90 : 30} tickFormatter={cut} />
-              <YAxis orientation="right" tickFormatter={fmt} tick={{ fontSize: 11, fontFamily: 'Cairo' }} width={64} />
+              <XAxis dataKey="name" reversed tick={{ fontSize: 11, fontFamily: 'IBM Plex Sans Arabic' }} interval={0} angle={tilt ? 30 : 0} textAnchor={tilt ? 'start' : 'middle'} height={tilt ? 90 : 30} tickFormatter={cut} />
+              <YAxis orientation="right" tickFormatter={fmt} tick={{ fontSize: 11, fontFamily: 'IBM Plex Sans Arabic' }} width={64} />
             </>
           )}
-          <Tooltip {...tip} formatter={(v, n) => [money ? fmtM(v) + ' ر.س' : v, n]} cursor={{ fill: '#0f748914' }} />
-          {bars.length > 1 && <Legend wrapperStyle={{ fontFamily: 'Cairo', fontSize: 12 }} />}
+          <Tooltip {...tip} formatter={(v, n) => [money ? fmtM(v) + ' ر.س' : v, n]} cursor={{ fill: '#0F253714' }} />
+          {bars.length > 1 && <Legend wrapperStyle={{ fontFamily: 'IBM Plex Sans Arabic', fontSize: 12 }} />}
           {bars.map((b, bi) => (
             <Bar key={b.key} dataKey={b.key} name={b.label} fill={b.color || PALETTE[bi]} radius={horizontal ? [0, 4, 4, 0] : [6, 6, 0, 0]} onClick={(d) => onSelect?.(d.payload?.name ?? d.name)} cursor={onSelect ? 'pointer' : 'default'}>
-              {bars.length === 1 && data.map((d, i) => <Cell key={i} fill={d.color || b.color || PALETTE[bi]} opacity={active && active !== d.name ? 0.35 : 1} />)}
-              {labels && <LabelList dataKey={b.key} position={horizontal ? 'right' : 'top'} formatter={fmt} style={{ fontSize: 10, fontFamily: 'Cairo', fill: '#334155' }} />}
+              {bars.length === 1 && data.map((d, i) => <Cell key={i} fill={active === d.name ? '#F37021' : d.color || b.color || PALETTE[bi]} opacity={active && active !== d.name ? 0.35 : 1} />)}
+              {labels && <LabelList dataKey={b.key} position={horizontal ? 'right' : 'top'} formatter={fmt} style={{ fontSize: 10, fontFamily: 'IBM Plex Sans Arabic', fill: '#334155' }} />}
             </Bar>
           ))}
         </BarChart>

@@ -1,22 +1,32 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Cairo", system-ui, sans-serif;
-  --color-navy-950: #071428;
-  --color-navy-900: #0b1f3a;
-  --color-navy-800: #12305a;
-  --color-navy-700: #1b4277;
-  --color-petrol-700: #0e5e6f;
-  --color-petrol-600: #0f7489;
-  --color-petrol-500: #138ea6;
-  --color-petrol-100: #d6f1f5;
-  --color-ok: #16a34a;
-  --color-warn: #f97316;
-  --color-bad: #dc2626;
+  --font-sans: "IBM Plex Sans Arabic", system-ui, sans-serif;
+  /* هوية الوبران نجران — قطاع الطاقة */
+  --color-navy-950: #0A1B29;
+  --color-navy-900: #0F2537;
+  --color-navy-800: #16324A;
+  --color-navy-700: #1F4260;
+  --color-petrol-700: #D95E16;
+  --color-petrol-600: #F37021;
+  --color-petrol-500: #F37021;
+  --color-petrol-100: #FDE3D3;
+  --color-cyan-50: #FEF3EB;
+  --color-cyan-200: #FBD0B3;
+  --color-cyan-300: #F9B48A;
+  --color-sand: #C89B6E;
+  --color-clay: #F7F3EE;
+  --color-slate-200: #E2E8F0;
+  --color-slate-600: #475569;
+  --color-slate-800: #1E293B;
+  --color-ok: #10B981;
+  --color-warn: #F59E0B;
+  --color-bad: #EF4444;
 }
 
-html, body { background: #eef2f7; color: #0f172a; }
+html, body { background: #F8FAFC; color: #1E293B; }
 body { font-family: var(--font-sans); }
+.tabular-nums, table, .kpi-num { font-variant-numeric: tabular-nums; }
 * { scrollbar-width: thin; scrollbar-color: #94a3b8 transparent; }
 
 @utility card { @apply rounded-2xl bg-white shadow-[0_1px_2px_rgba(15,23,42,.06),0_4px_16px_rgba(15,23,42,.05)] border border-slate-200/70; }

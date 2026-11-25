@@ -33,7 +33,7 @@ export default function Collections({ ctx }) {
   if (!b) return <div className="card p-6 text-sm text-slate-600">لا يوجد شيت خطة تحصيل في هذا التقرير.</div>;
 
   const active = Object.values(f).some(Boolean);
-  const stageColor = (s, i) => (/موازن/.test(s.label) ? '#f97316' : /جاري تحصيل/.test(s.label) ? '#0f7489' : /منتهي/.test(s.label) ? '#16a34a' : PALETTE[i % PALETTE.length]);
+  const stageColor = (s, i) => (/موازن/.test(s.label) ? '#F59E0B' : /جاري تحصيل/.test(s.label) ? '#0F2537' : /منتهي/.test(s.label) ? '#10B981' : PALETTE[i % PALETTE.length]);
   const stagesF = b.stages.map((s, i) => ({ ...s, ftotal: rows.reduce((a, r) => a + (r.stages[s.col] || 0), 0), fcount: rows.filter((r) => r.stages[s.col] != null).length, color: stageColor(s, i) }));
   const findStage = (rx) => stagesF.find((s) => rx.test(normAr(s.label)));
   const collecting = findStage(/جاري تحصيل/);
@@ -68,7 +68,7 @@ export default function Collections({ ctx }) {
       <div className="card flex flex-wrap items-center gap-3 border-r-4 border-r-petrol-600 p-4">
         <Wallet className="text-petrol-600" />
         <div className="flex-1">
-          <div className="font-extrabold text-navy-900">{b.title}</div>
+          <div className="font-bold text-navy-900">{b.title}</div>
           <div className="text-[11px] text-slate-500">شيت "{current.collections_data.sheet.trim()}" · {b.rows.length} سجلاً · القيم محتملة/مخططة ولا تمثل تحصيلاً فعلياً إلا حيث تنص المرحلة على ذلك.</div>
         </div>
         <button className="btn-ghost no-print" onClick={doExport}><Download size={15} />تصدير Excel</button>
@@ -105,7 +105,7 @@ export default function Collections({ ctx }) {
           <button key={s.col} onClick={() => pickStage(short(s.label))} className={`card fade-in relative overflow-hidden p-4 text-right transition hover:-translate-y-0.5 hover:shadow-lg ${f.stage === s.col ? 'ring-2 ring-petrol-500' : ''}`}>
             <span className="absolute inset-x-0 top-0 h-1" style={{ background: s.color }} />
             <div className="min-h-10 whitespace-pre-line text-xs font-bold leading-5 text-slate-600">{s.label}</div>
-            <div className="mt-2 text-2xl font-extrabold text-navy-900">{fmtM(s.ftotal)}</div>
+            <div className="mt-2 text-2xl font-bold text-navy-900">{fmtM(s.ftotal)}</div>
             <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500"><span>ر.س</span><Badge tone="slate">{s.fcount} مشروع</Badge></div>
           </button>
         ))}
@@ -119,7 +119,7 @@ export default function Collections({ ctx }) {
           <Donut data={stagesF.filter((s) => s.ftotal > 0).map((s) => ({ name: short(s.label), value: s.ftotal, color: s.color }))} money onSelect={pickStage} height={260} />
         </Panel>
         <Panel title="أكبر 10 فرص تحصيل (مجموع قيم المشروع في المراحل)" icon={Trophy}>
-          <Bars data={top.map((r) => ({ name: r.name || r.wo, value: r.total, color: '#0f7489' }))} horizontal money labels bars={[{ key: 'value', label: 'القيمة' }]} onSelect={(n) => setSel(rows.find((r) => (r.name || r.wo) === n))} />
+          <Bars data={top.map((r) => ({ name: r.name || r.wo, value: r.total, color: '#0F2537' }))} horizontal money labels bars={[{ key: 'value', label: 'القيمة' }]} onSelect={(n) => setSel(rows.find((r) => (r.name || r.wo) === n))} />
         </Panel>
         <div className="space-y-4">
           <Panel title="موقف GIS" icon={MapIcon}><Donut data={countBy(rows, 'gis')} onSelect={(v) => toggle('gis', v)} active={f.gis} height={200} /></Panel>
@@ -191,7 +191,7 @@ export default function Collections({ ctx }) {
           <div className="space-y-4">
             <div className="rounded-xl bg-navy-900 p-4 text-white">
               <div className="text-xs text-slate-300">مجموع قيم المشروع في المراحل</div>
-              <div className="text-2xl font-extrabold">{fmtSAR(sel.total)}</div>
+              <div className="text-2xl font-bold">{fmtSAR(sel.total)}</div>
               <div className="mt-2 flex flex-wrap gap-1.5">{sel.stageList.map((s) => <span key={s.col} className="rounded-full bg-white/10 px-2 py-0.5 text-[11px]">{short(s.label)}: {fmtNum(sel.stages[s.col])}</span>)}</div>
             </div>
             {sel.errs.length > 0 && <div className="rounded-xl bg-red-50 p-3 text-xs text-red-700">{sel.errs.join(' · ')}</div>}

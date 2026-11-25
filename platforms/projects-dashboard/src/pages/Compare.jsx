@@ -114,7 +114,7 @@ export default function Compare({ ctx }) {
               {countBy(cmp.items, 'badge').map((c) => (
                 <button key={c.name} onClick={() => setBadge(badge === c.name ? '' : c.name)} className={`rounded-xl border px-3 py-2 text-right transition hover:shadow ${badge === c.name ? 'border-petrol-500 bg-cyan-50' : 'border-slate-200'}`}>
                   <Badge tone={BADGE_TONE[c.name]}>{c.name}</Badge>
-                  <span className="mr-2 text-lg font-extrabold text-navy-900">{c.value}</span>
+                  <span className="mr-2 text-lg font-bold text-navy-900">{c.value}</span>
                 </button>
               ))}
             </div>
