@@ -362,3 +362,20 @@ table.perm input { width: 18px; height: 18px; accent-color: var(--ink); }
 .lg.dash{border-top-style:dashed}
 @media (max-width:1100px){.sch-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.sch-k:nth-child(4n+1){border-inline-start:1px solid var(--line,#D3DAD7)}.sch-k:nth-child(2n+1){border-inline-start:0}}
 @media (max-width:560px){.sch-grid{grid-template-columns:1fr}.sch-k{border-inline-start:0!important}}
+
+/* إضافة أوامر عمل */
+.wo-in{display:grid;grid-template-columns:minmax(220px,1fr) 2fr;gap:14px;margin-top:10px}
+.wo-drop{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;border:2px dashed var(--line,#D3DAD7);border-radius:12px;padding:22px;text-align:center;cursor:pointer;background:var(--card,#fff)}
+.wo-drop:hover,.wo-drop:focus-within{border-color:var(--ink,#13262F)}
+.wo-drop span{font-size:13px;color:var(--muted,#56686D)}
+.wo-drop input{position:absolute;width:1px;height:1px;opacity:0}
+.wo-paste{display:flex;flex-direction:column;gap:8px}
+.wo-paste textarea{width:100%;box-sizing:border-box;border:1px solid var(--line,#D3DAD7);border-radius:10px;padding:10px;font:inherit;background:var(--card,#fff);color:inherit;resize:vertical}
+.wo-paste .btn{align-self:flex-start}
+.wo-bar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.wo-bar h3{margin:0}
+.wo-t input{width:100%;min-width:90px;box-sizing:border-box;border:1px solid transparent;border-radius:6px;padding:5px 6px;font:inherit;font-size:13px;background:transparent;color:inherit}
+.wo-t input:hover,.wo-t input:focus{border-color:var(--line,#D3DAD7);background:var(--card,#fff)}
+.wo-t tr.wo-bad td{background:color-mix(in srgb,var(--bad,#B8332A) 7%,transparent)}
+.wo-is{font-size:12px;color:var(--bad,#B8332A);min-width:120px}
+@media (max-width:760px){.wo-in{grid-template-columns:1fr}}

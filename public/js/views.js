@@ -338,18 +338,154 @@
       </div></section>`;
   }
 
+  /* ---------- إضافة أوامر عمل لمنصة الإسناد: Excel / PDF / صورة / لصق → مراجعة → ملف استيراد ---------- */
+  const WOF = [
+    ["wo_number", "رقم أمر العمل", "id", ["رقم امر العمل", "امر العمل", "أمر العمل"]], ["contract_number", "رقم العقد", "id", ["العقد"]], ["work_type_code", "رمز نوع أمر العمل", "id", ["رمز نوع امر العمل", "رمز النوع"]],
+    ["work_type_name", "نوع امر العمل", "text", ["نوع أمر العمل", "نوع العمل"]], ["wo_status", "موقف أمر العمل", "text", ["حالة أمر العمل", "موقف الامر"]], ["payment_status", "حالة الصرف", "text", ["الصرف"]],
+    ["contractor_number", "رقم المقاول", "id", []], ["contractor_name", "المقاول", "text", ["اسم المقاول"]], ["office_code", "رمز المكتب", "id", []], ["office_name", "المكتب", "text", ["اسم المكتب"]],
+    ["approved_value", "قيمة أمر العمل المعتمدة", "money", ["القيمة المعتمدة", "قيمة أمر العمل"]], ["estimated_budget", "الميزانية التقديرية", "money", []], ["labor_cost", "تكلفة العمالة", "money", []],
+    ["issued_material_cost", "تكلفة المواد المصروفه", "money", ["تكلفة المواد المصروفة"]], ["unissued_material_cost", "تكلفة المواد الغير مصروفه", "money", ["تكلفة المواد غير المصروفة"]], ["total_actual_cost", "التكلفة الفعلية الإجمالية", "money", []],
+    ["certificate_amount", "مبلغ شهادة الإنجاز", "money", ["مبلغ شهادة الانجاز"]], ["actual_paid_amount", "المبلغ المصروف فعلياً", "money", []],
+    ["delivered_date", "تاريخ التسليم للمقاول", "date", ["تاريخ التسليم"]], ["received_date", "تاريخ الاستلام من المقاول", "date", ["تاريخ الاستلام"]], ["cert_date", "تاريخ شهادة الانجاز", "date", []],
+    ["cert_approval_date", "تاريخ اعتماد شهادة الانجاز", "date", []], ["contractor_cert_approval_date", "تاريخ اعتماد المقاول لشهادة الانجاز", "date", []],
+    ["extract_number", "رقم المستخلص", "id", []], ["extract_date", "تاريخ المستخلص", "date", []], ["planned_completion_date", "تاريخ الإنجاز المخطط", "date", []],
+    ["actual_completion_date", "تاريخ الإنجاز الفعلي", "date", []], ["expected_payment_date", "تاريخ الصرف المتوقع", "date", []], ["actual_payment_date", "تاريخ الصرف الفعلي", "date", []],
+    ["management_notes", "ملاحظات الإدارة", "text", []], ["risk_level", "مستوى المخاطر", "text", []], ["follow_up_owner", "المسؤول عن المتابعة", "text", []],
+  ];
+  const WO_ST = ["تم تسليم المقاول ولم يتم الاستلام", "تم الاستلام من المقاول ولم تصدر شهادة الانجاز", "صدرت شهادة الانجاز ولم تعتمد", "معتمد ولم تأكد من المقاول", "مؤكد ولم تدخل مستخلص", "دخلت مستخلص ولم تصرف", "منتهي"];
+  const WO_PAY = ["تم الصرف", "لم تصرف"];
+  const WO_IMPORT = "https://work-orders-control-center.netlify.app/import";
+  const woNorm = (t) => String(t ?? "").replace(/[ً-ْـ]/g, "").replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").replace(/\s+/g, " ").trim();
+  const WO_HEAD = new Map(); WOF.forEach(([k, l, , al]) => [l, ...al].forEach((x) => WO_HEAD.set(woNorm(x), k)));
+  function woVal(type, v) {
+    if (v == null || v === "") return null;
+    if (type === "money") { const n = typeof v === "number" ? v : Number(String(v).replace(/[,\s٬]/g, "").replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d))); return isNaN(n) ? null : n; }
+    if (type === "date") {
+      if (typeof v === "number" && v > 20000 && v < 80000) { const d = new Date(Math.round((v - 25569) * 86400000)); return d.toISOString().slice(0, 10); }
+      if (v instanceof Date) return v.toISOString().slice(0, 10);
+      const s = String(v).trim(); let m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/); if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+      m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/); if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+      return s;
+    }
+    return String(v).trim();
+  }
+  function woFromTable(aoa) {
+    // أول صف فيه 3 عناوين معروفة على الأقل = صف العناوين
+    let h = -1, map = null;
+    for (let i = 0; i < Math.min(aoa.length, 15); i++) { const m = (aoa[i] || []).map((c) => WO_HEAD.get(woNorm(c)) || null); if (m.filter(Boolean).length >= 3) { h = i; map = m; break; } }
+    if (h < 0) return null;
+    const T = Object.fromEntries(WOF.map((f) => [f[0], f[2]]));
+    return aoa.slice(h + 1).filter((r) => r && r.some((c) => c !== null && c !== "")).map((r) => { const o = {}; map.forEach((k, i) => { if (k && o[k] == null) o[k] = woVal(T[k], r[i]); }); return o; }).filter((o) => o.wo_number || o.contract_number);
+  }
+  function woIssues(r) {
+    const out = [];
+    ["wo_number", "contract_number", "work_type_code"].forEach((k) => { if (!r[k]) out.push(WOF.find((f) => f[0] === k)[1] + " مطلوب"); });
+    if (r.wo_status && !WO_ST.includes(r.wo_status)) out.push("موقف غير معروف");
+    if (r.payment_status && !WO_PAY.includes(r.payment_status)) out.push("حالة صرف غير معروفة");
+    return out;
+  }
+  function woAddView() {
+    const rows = ui.woRows || [], bad = rows.filter((r) => woIssues(r).length).length;
+    const keys = new Map(); rows.forEach((r) => { const k = [r.wo_number, r.contract_number, r.work_type_code].join("|"); keys.set(k, (keys.get(k) || 0) + 1); });
+    const dup = [...keys.values()].filter((n) => n > 1).length;
+    const show = ["wo_number", "contract_number", "work_type_code", "work_type_name", "contractor_name", "office_name", "approved_value", "delivered_date", "wo_status", "payment_status"];
+    return `<section class="section panel"><h3>إضافة أوامر عمل لمنصة الإسناد</h3>
+      <p class="hint">أرفق ملف Excel أو CSV أو PDF أو صورة، أو الصق الجدول/النص. تُستخرج أوامر العمل وتراجعها هنا، ثم يُنزَّل ملف استيراد بنفس أعمدة المنصة فتستورده من «مركز الاستيراد» فيها (إضافة أو تحديث). المفتاح: رقم أمر العمل + رقم العقد + رمز النوع.</p>
+      <div class="wo-in">
+        <label class="wo-drop" for="woFile"><b>اختر ملفاً</b><span>Excel · CSV · PDF · صورة (حتى 4 ميجابايت)</span><input id="woFile" type="file" accept=".xlsx,.xlsm,.xls,.csv,.pdf,image/png,image/jpeg,image/webp" multiple></label>
+        <div class="wo-paste"><textarea id="woPaste" rows="5" placeholder="أو الصق هنا جدولاً منسوخاً من Excel (مع صف العناوين) أو نص رسالة/مستند فيه أوامر عمل"></textarea>
+          <button class="btn pri" type="button" data-wo="paste">استخراج من النص</button></div>
+      </div>
+      <p class="msg" id="woMsg" role="status">${esc(ui.woMsg || "")}</p></section>
+      ${rows.length ? `<section class="section panel"><div class="wo-bar"><h3>المراجعة: ${rows.length} صف${bad ? ` · <span class="pill p-bad">${bad} ناقص</span>` : ""}${dup ? ` · <span class="pill p-warn">${dup} مفتاح مكرر</span>` : ""}</h3>
+        <div class="acts"><button class="btn pri" type="button" data-wo="xlsx">تنزيل ملف الاستيراد (Excel)</button><a class="btn" href="${WO_IMPORT}" target="_blank" rel="noopener">فتح مركز الاستيراد في المنصة ↗</a><button class="btn" type="button" data-wo="clear">مسح</button></div></div>
+        ${ui.woNotes ? `<div class="note">${esc(ui.woNotes)}</div>` : ""}
+        <div class="tbl"><table class="wo-t"><thead><tr><th>#</th>${show.map((k) => `<th>${esc(WOF.find((f) => f[0] === k)[1])}</th>`).join("")}<th>ملاحظات</th><th></th></tr></thead><tbody>
+        ${rows.map((r, i) => { const is = woIssues(r); return `<tr class="${is.length ? "wo-bad" : ""}"><td class="num">${i + 1}</td>${show.map((k) => `<td><input data-woi="${i}" data-wok="${k}" value="${esc(r[k] == null ? "" : r[k])}" ${k === "wo_status" ? 'list="woStL"' : k === "payment_status" ? 'list="woPayL"' : ""} aria-label="${esc(WOF.find((f) => f[0] === k)[1])}"></td>`).join("")}<td class="wo-is">${esc(is.join("، "))}</td><td><button class="btn sm" type="button" data-wo="del" data-i="${i}" aria-label="حذف الصف">حذف</button></td></tr>`; }).join("")}
+        </tbody></table></div>
+        <datalist id="woStL">${WO_ST.map((x) => `<option value="${esc(x)}">`).join("")}</datalist><datalist id="woPayL">${WO_PAY.map((x) => `<option value="${esc(x)}">`).join("")}</datalist>
+        <p class="hint">بقية الحقول (التكاليف والتواريخ الأخرى والمستخلص) محفوظة في الملف إن وُجدت في المصدر. الصفوف الناقصة تُرفض في المنصة عند الاستيراد، فأكملها هنا أولاً.</p></section>` : ""}`;
+  }
+  function woSetMsg(t) { ui.woMsg = t; const m = document.getElementById("woMsg"); if (m) m.textContent = t; }
+  function woAdd(rows, notes) { ui.woRows = (ui.woRows || []).concat(rows); if (notes) ui.woNotes = notes; woSetMsg(`أُضيف ${rows.length} صف للمراجعة.`); render(); }
+  async function woAI(payload) {
+    const r = await fetch("/api/wo-extract", { method: "POST", headers: { "content-type": "application/json", ...HUB.Auth.headers() }, body: JSON.stringify(payload) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error === "ai_unavailable" ? "المساعد الذكي غير متاح حالياً" : j.error || "تعذّر الاستخراج");
+    return j;
+  }
+  const woB64 = (f) => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1]); fr.onerror = rej; fr.readAsDataURL(f); });
+  async function woFiles(files) {
+    for (const f of files) {
+      try {
+        const n = f.name.toLowerCase();
+        if (/\.(xlsx|xlsm|xls|csv)$/.test(n)) {
+          if (!window.XLSX) throw new Error("مكتبة Excel لم تُحمَّل بعد، أعد المحاولة");
+          woSetMsg(`جارٍ قراءة ${f.name}…`);
+          const wb = XLSX.read(await f.arrayBuffer(), { type: "array", cellDates: false });
+          let rows = [];
+          wb.SheetNames.forEach((sn) => { const r = woFromTable(XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: true, defval: null })); if (r) rows = rows.concat(r); });
+          if (!rows.length) throw new Error(`لم أجد في ${f.name} صف عناوين بأسماء أعمدة المنصة (رقم أمر العمل، رقم العقد، رمز نوع أمر العمل…)`);
+          woAdd(rows);
+        } else if (/\.pdf$/.test(n) || /^image\//.test(f.type)) {
+          if (f.size > 4 * 1024 * 1024) throw new Error(`${f.name} أكبر من 4 ميجابايت`);
+          woSetMsg(`جارٍ استخراج أوامر العمل من ${f.name} بالذكاء الاصطناعي… (قد يستغرق دقيقة)`);
+          const j = await woAI(/\.pdf$/.test(n) ? { kind: "pdf", data: await woB64(f) } : { kind: "image", media_type: f.type, data: await woB64(f) });
+          const T = Object.fromEntries(WOF.map((x) => [x[0], x[2]]));
+          const rows = (j.rows || []).map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, T[k] ? woVal(T[k], v) : v])));
+          if (!rows.length) throw new Error(`لم يُعثر على أوامر عمل في ${f.name}`);
+          woAdd(rows, [j.notes, j.truncated ? "المستند طويل: قد لا تكون كل الصفوف استُخرجت، قسّمه وأعد المحاولة." : ""].filter(Boolean).join(" "));
+        } else throw new Error(`نوع الملف ${f.name} غير مدعوم`);
+      } catch (e) { woSetMsg(e.message); }
+    }
+  }
+  async function woPaste() {
+    const t = (document.getElementById("woPaste") || {}).value || "";
+    if (!t.trim()) return woSetMsg("الصق نصاً أو جدولاً أولاً.");
+    const aoa = t.split(/\r?\n/).map((l) => l.split("\t"));
+    const local = aoa.some((r) => r.length > 2) ? woFromTable(aoa) : null;
+    if (local && local.length) return woAdd(local);
+    try { woSetMsg("جارٍ استخراج أوامر العمل من النص بالذكاء الاصطناعي…"); const j = await woAI({ kind: "text", text: t }); const T = Object.fromEntries(WOF.map((x) => [x[0], x[2]])); const rows = (j.rows || []).map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, T[k] ? woVal(T[k], v) : v]))); if (!rows.length) throw new Error("لم يُعثر على أوامر عمل في النص"); woAdd(rows, j.notes); }
+    catch (e) { woSetMsg(e.message); }
+  }
+  function woXlsx() {
+    const rows = ui.woRows || [];
+    if (!window.XLSX) return woSetMsg("مكتبة Excel لم تُحمَّل بعد، أعد المحاولة");
+    const aoa = [WOF.map((f) => f[1])].concat(rows.map((r) => WOF.map(([k, , t]) => (r[k] == null || r[k] === "" ? null : t === "money" ? Number(r[k]) : String(r[k])))));
+    const ws = XLSX.utils.aoa_to_sheet(aoa); ws["!cols"] = WOF.map(() => ({ wch: 18 }));
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "أوامر العمل");
+    XLSX.writeFile(wb, `work-orders-import-${U.iso(U.today())}.xlsx`);
+    woSetMsg(`نُزّل ملف بـ ${rows.length} صف. افتح «مركز الاستيراد» في المنصة وارفعه (إضافة الجديد أو تحديث الموجود).`);
+  }
+  document.addEventListener("change", (e) => {
+    if (e.target.id === "woFile" && e.target.files.length) { const fs = [...e.target.files]; e.target.value = ""; woFiles(fs); }
+    const i = e.target.dataset && e.target.dataset.woi;
+    if (i != null && ui.woRows && ui.woRows[i]) { const k = e.target.dataset.wok, t = (WOF.find((f) => f[0] === k) || [])[2]; ui.woRows[i][k] = woVal(t, e.target.value); render(); }
+  });
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-wo]"); if (!b) return;
+    const a = b.dataset.wo;
+    if (a === "paste") woPaste();
+    else if (a === "xlsx") woXlsx();
+    else if (a === "clear") { ui.woRows = []; ui.woNotes = ""; woSetMsg(""); render(); }
+    else if (a === "del") { ui.woRows.splice(+b.dataset.i, 1); render(); }
+  });
+
   function linkedApp(p, tab) {
     const ds = S.ds[p.id];
     const A = ds ? DS.analyze(p.id, ds) : null;
     const ev = E.items.find((i) => i.id === p.id);
     tab = tab || (A ? "overview" : canEditP(p.id) ? "data" : "overview");
     if (tab === "data" && !canEditP(p.id)) tab = "overview";
-    const tabs = [["overview", "الصورة العامة"], ["analysis", "التحليل"]].concat(p.id === "schedule" ? [] : [["late", "المتأخرة", A ? A.W(A.late) : null]]).concat([ ["all", "التقارير والتصدير", A ? A.W(A.rows) : null], ].concat(canEditP(p.id) ? [["data", "تحديث البيانات"]] : []).concat([["board", "المنصة الأصلية"]]));
+    const woAddOk = p.id === "assign" && canEditP("assign");
+    if (tab === "woadd" && !woAddOk) tab = "overview";
+    const tabs = (woAddOk ? [["woadd", "إضافة أوامر عمل"]] : []).concat([["overview", "الصورة العامة"], ["analysis", "التحليل"]]).concat(p.id === "schedule" ? [] : [["late", "المتأخرة", A ? A.W(A.late) : null]]).concat([ ["all", "التقارير والتصدير", A ? A.W(A.rows) : null], ].concat(canEditP(p.id) ? [["data", "تحديث البيانات"]] : []).concat([["board", "المنصة الأصلية"]]));
     let body = "";
     const needData = `<div class="panel empty"><h3>لم تُرفع بيانات ${esc(p.short)} بعد</h3><p>ارفع ملف Excel أو الصق الجدول من المنصة الأصلية لتظهر هنا اللوحة التحليلية، وتدخل المنصة في تقرير الفرع والمساعد.</p><button class="btn pri" data-go="${link(p.id, "data")}" type="button">تحديث البيانات</button></div>`;
     const stale = A && U.daysFrom(ds.asof) > 3 ? `<div class="note">آخر بيانات بتاريخ ${U.dmy(ds.asof)} (منذ ${U.days(U.daysFrom(ds.asof))}). ${DS.AUTO[p.id] ? "البوابة تسحب من المنصة الأصلية تلقائياً، والمنصة نفسها لم تُحدّث منذ ذلك التاريخ." : "ارفع آخر نسخة من «تحديث البيانات»."}</div>` : "";
 
-    if (tab === "board") body = frame(p.url, p.name);
+    if (tab === "woadd") body = woAddView();
+    else if (tab === "board") body = frame(p.url, p.name);
     else if (tab === "data") body = dataTab(p, A, ds);
     else if (!A) body = needData;
     else if (tab === "overview" && p.id === "schedule") body = stale + schedMonthly(ds);
@@ -598,8 +734,8 @@
 
   function dispatchApp(p, tab) {
     const d = S.dispatch, days = (d && d.edc) || [], plans = (d && d.plans) || [];
-    tab = tab || "analysis";
-    const tabs = [["analysis", "التحليل وجدول الكهرباء اليومي", days[0] ? days[0].rows.length : null], ["sheet", "جدول التوزيع المنسق (للطباعة)"], ["board", "المنصة الأصلية"]];
+    tab = tab || "sheet"; // الافتراضي: جدول التوزيع المنسق لآخر يوم
+    const tabs = [["sheet", "جدول التوزيع المنسق (للطباعة)"], ["analysis", "التحليل وجدول الكهرباء اليومي", days[0] ? days[0].rows.length : null], ["board", "المنصة الأصلية"]];
     const sync = d && d.syncedAt ? `آخر مزامنة تلقائية من لوحة التوزيع: ${new Date(d.syncedAt).toLocaleString("ar-SA-u-nu-latn")}` : "";
     const none = `<div class="panel empty"><h3>لم تصل بيانات من لوحة التوزيع بعد</h3><p>لوحة التوزيع تحفظ جداولها داخل متصفح من يعدّها. أضفنا إليها مزامنة تلقائية: يكفي أن يفتح المخطط اللوحة مرة من جهازه، فتصل آخر الجداول هنا وتتحدث كل دقيقة أثناء العمل.</p><a class="btn pri" href="${esc(p.url)}" target="_blank" rel="noopener">فتح لوحة التوزيع</a></div>`;
     let body = "";
