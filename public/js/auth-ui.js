@@ -20,7 +20,8 @@
     let el = document.getElementById("authScreen");
     if (!el) { el = document.createElement("div"); el.id = "authScreen"; el.className = "auth-screen"; el.setAttribute("dir", "rtl"); document.body.appendChild(el); }
     document.body.classList.add("auth-mode");
-    el.innerHTML = `<div class="auth-card"><div class="auth-brand"><svg width="44" height="44" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#1D3540"/><path d="M8 26V12h4V8h8v4h4v14z" fill="#B98B66"/><path d="M8 18h16M8 22h16" stroke="#E9EFEC" stroke-width="1.5"/></svg><div><b>منصة الوبران · نجران</b><span>منصة إدارة أعمال المقاول</span></div></div>${inner}<p class="auth-sign">Project Manager | Eng. Ahmed Zahran</p></div>`;
+    el.innerHTML = `<div class="auth-wrap"><aside class="auth-art">${window.NJ ? NJ.scene("auth", "start") : ""}<div class="auth-art-text"><img src="img/wabran-logo.png" alt="" width="72" height="62"><h2>شركة ناصر مانع الوبران وشركاه</h2><p>مقاول مشاريع الشركة السعودية للكهرباء في نجران: أوامر العمل، والتخطيط اليومي، والرخص، والسلامة في منصة واحدة.</p></div></aside>
+      <main class="auth-card"><div class="auth-brand"><img src="img/wabran-logo.png" alt="شعار الوبران" width="44" height="38"><div><b>منصة الوبران · نجران</b><span>مشاريع قطاع الطاقة</span></div></div>${inner}<p class="auth-sign">Project Manager | Eng. Ahmed Zahran</p></main></div>`;
     return el;
   }
   function closeScreen() { const el = document.getElementById("authScreen"); if (el) el.remove(); document.body.classList.remove("auth-mode"); }

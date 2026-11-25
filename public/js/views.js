@@ -80,7 +80,9 @@
     const sm = S.summary;
     const hp = P.hp;
     const perTxt = P.period ? `${P.label}${P.period.from ? " · من " + U.dmy(P.period.from) : ""}${P.period.to ? " حتى " + U.dmy(P.period.to) : ""}` : "كل الفترات";
+    const hr = new Date().getHours(), greet = hr < 12 ? "صباح الخير" : "مساء الخير";
     view.innerHTML = `
+      <section class="nj-hero">${window.NJ ? NJ.scene("home") : ""}<div class="nj-hero-text"><p class="nj-greet">${greet}، ${esc((HUB.user && HUB.user.name) || "")}</p><h1>مشاريع قطاع الطاقة في نجران</h1><p class="nj-sub">${U.longDate()} · ${E.covered} من ${E.total} منصات لها بيانات اليوم</p></div></section>
       <section class="perbar panel">
         <div class="perbar-row"><h2>تحليل المنصات</h2>
           <div class="chips" role="group" aria-label="فترة التحليل">${[[1, "آخر شهر"], [3, "آخر 3 أشهر"], ["all", "الكل"], ["custom", "اختيار فترة"]].map(([k, l]) => `<button class="chip" type="button" data-hper="${k}" aria-pressed="${String(hp.per) === String(k)}">${l}</button>`).join("")}</div></div>

@@ -4,44 +4,49 @@
   والصفحة الرئيسية تبدأ بجملة موقف مكتوبة، وبجانبها "برج الفرع": طبقات كطبقات بيوت الطين النجرانية،
   كل طبقة منصة، عرضها مقدار سلامتها ولونها حالتها. هذا هو العنصر الجريء الوحيد؛ الباقي هادئ.
 */
+/* الهوية: wabran-najran-energy-ui — كحلي الطاقة، برتقالي الطاقة، رمل نجران */
 :root {
-  --ink: #13262F;
-  --ink-2: #1D3540;
-  --on-ink: #E9EFEC;
-  --on-ink-2: #9FB2B3;
-  --ground: #EEF1EF;
+  --energy-orange: #F37021; --energy-orange-hover: #D95E16; --energy-navy: #0F2537;
+  --wabran-slate: #1E293B; --wabran-steel: #475569;
+  --najran-sand: #C89B6E; --najran-clay-soft: #F7F3EE;
+  --ink: #0F2537;
+  --ink-2: #1A3550;
+  --on-ink: #EEF2F6;
+  --on-ink-2: #9DB0C3;
+  --ground: #F8FAFC;
   --panel: #FFFFFF;
-  --text: #13262F;
-  --muted: #56686D;
-  --line: #D3DAD7;
-  --soft: #F5F7F6;
-  --mud: #8C5B3F;
-  --mud-2: #B98B66;
-  --volt: #E3A21A;
-  --bad: #B8332A;  --bad-bg: #F7DEDA;
-  --warn: #9A5C00; --warn-bg: #FAEBCB;
-  --ok: #1D7350;   --ok-bg: #D8EEE3;
-  --none: #8A979A; --none-bg: #E6EBEA;
-  --f-head: "Alexandria", "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --text: #1E293B;
+  --muted: #475569;
+  --line: #E2E8F0;
+  --soft: #F7F3EE;
+  --mud: #9A6E44;
+  --mud-2: #C89B6E;
+  --volt: #F37021;
+  --bad: #C62B22;  --bad-bg: #FDE4E2;
+  --warn: #A15C00; --warn-bg: #FEF0D6;
+  --ok: #057A55;   --ok-bg: #D9F5EA;
+  --none: #64748B; --none-bg: #EEF2F6;
+  --st-done: #10B981; --st-progress: #0EA5E9; --st-pending: #F59E0B; --st-delayed: #EF4444;
+  --f-head: "IBM Plex Sans Arabic", system-ui, "Segoe UI", Tahoma, sans-serif;
   --f-body: "IBM Plex Sans Arabic", system-ui, "Segoe UI", Tahoma, sans-serif;
-  --r-s: 4px; --r-m: 8px;
+  --r-s: 6px; --r-m: 10px;
   --side: 268px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --ink: #0B171D; --ink-2: #14252D; --on-ink: #E3EAE7; --on-ink-2: #8EA2A4;
-    --ground: #101D23; --panel: #172830; --text: #E3EAE7; --muted: #9AABAE; --line: #2A3F48; --soft: #1C3039;
-    --mud: #C9946D; --mud-2: #8E6446; --volt: #F0B43A;
-    --bad: #FF8C80; --bad-bg: #3B1E1C; --warn: #F2B85A; --warn-bg: #3A2C12; --ok: #6FD3A2; --ok-bg: #12342A;
-    --none: #7F8F92; --none-bg: #22343B; color-scheme: dark;
+    --ink: #0A1A28; --ink-2: #15304A; --on-ink: #E6EDF4; --on-ink-2: #8FA4B8;
+    --ground: #0D1B29; --panel: #13263A; --text: #E6EDF4; --muted: #A3B4C5; --line: #24405C; --soft: #182E44;
+    --mud: #D9B08A; --mud-2: #A97B52; --volt: #FF8A45;
+    --bad: #FF8C80; --bad-bg: #3B1E1C; --warn: #F7B955; --warn-bg: #3A2C12; --ok: #4ADE9F; --ok-bg: #10342A;
+    --none: #8FA0B2; --none-bg: #1E3348; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --ink: #0B171D; --ink-2: #14252D; --on-ink: #E3EAE7; --on-ink-2: #8EA2A4;
-  --ground: #101D23; --panel: #172830; --text: #E3EAE7; --muted: #9AABAE; --line: #2A3F48; --soft: #1C3039;
-  --mud: #C9946D; --mud-2: #8E6446; --volt: #F0B43A;
-  --bad: #FF8C80; --bad-bg: #3B1E1C; --warn: #F2B85A; --warn-bg: #3A2C12; --ok: #6FD3A2; --ok-bg: #12342A;
-  --none: #7F8F92; --none-bg: #22343B; color-scheme: dark;
+  --ink: #0A1A28; --ink-2: #15304A; --on-ink: #E6EDF4; --on-ink-2: #8FA4B8;
+  --ground: #0D1B29; --panel: #13263A; --text: #E6EDF4; --muted: #A3B4C5; --line: #24405C; --soft: #182E44;
+  --mud: #D9B08A; --mud-2: #A97B52; --volt: #FF8A45;
+  --bad: #FF8C80; --bad-bg: #3B1E1C; --warn: #F7B955; --warn-bg: #3A2C12; --ok: #4ADE9F; --ok-bg: #10342A;
+  --none: #8FA0B2; --none-bg: #1E3348; color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -383,3 +388,63 @@ table.perm input { width: 18px; height: 18px; accent-color: var(--ink); }
 .wo-link h4{margin:0 0 6px}
 .wo-link p{font-size:14px;color:var(--muted,#56686D);margin:0 0 8px}
 #woMode{padding:7px 10px;border:1px solid var(--line,#D3DAD7);border-radius:8px;background:var(--card,#fff);color:inherit;font:inherit}
+
+
+/* ===================== طبقة الهوية: الوبران · الطاقة · نجران ===================== */
+h1, h2, h3 { font-weight: 700; letter-spacing: 0; }
+.num, .kpi b, .pk-v, .sch-k .v, table td.num { font-variant-numeric: tabular-nums; }
+
+/* الشريط الجانبي: كحلي الطاقة مع خيط رملي وشارة برتقالية للعنصر الحالي */
+.side { background: linear-gradient(180deg, #0F2537 0%, #0C1F30 100%); border-inline-start: 1px solid rgba(200,155,110,.25); }
+.brand { border-bottom-color: rgba(200,155,110,.28); }
+.brand img { flex: none; width: 46px; height: auto; border-radius: 10px; filter: drop-shadow(0 2px 6px rgba(0,0,0,.25)); }
+.brand span { color: var(--najran-sand); }
+.nav a { border-radius: 10px; }
+.nav a:hover { background: rgba(255,255,255,.06); }
+.nav a[aria-current="page"] { background: rgba(243,112,33,.14); box-shadow: inset -3px 0 var(--energy-orange); color: #fff; }
+.nav a[aria-current="page"] svg { stroke: var(--energy-orange); }
+
+/* الأزرار الأساسية بلون الطاقة */
+.btn.pri { background: var(--energy-orange); border-color: var(--energy-orange); color: #fff; }
+.btn.pri:hover { background: var(--energy-orange-hover); border-color: var(--energy-orange-hover); }
+.ask-btn { background: var(--energy-navy); }
+.ask-btn svg { fill: var(--energy-orange); }
+.tabs a[aria-selected="true"], .tabs .on { border-bottom-color: var(--energy-orange) !important; }
+.panel { border-color: var(--line); border-radius: 12px; }
+
+/* البانر: مشهد نجران والطاقة */
+.nj-hero { position: relative; overflow: hidden; border-radius: 16px; min-height: 210px; margin-bottom: 16px; isolation: isolate; background: #0F2537; }
+.nj-hero .nj-scene { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; }
+.nj-hero-text { padding: 28px 30px 26px; max-width: 34em; color: #fff; text-shadow: 0 1px 12px rgba(15,37,55,.55); }
+.nj-hero h1 { font-size: clamp(24px, 3.2vw, 34px); line-height: 1.25; }
+.nj-greet { margin: 0 0 6px; color: var(--najran-sand); font-weight: 600; font-size: 15px; }
+.nj-sub { margin: 8px 0 0; color: #D7E1EA; font-size: 14px; }
+
+/* شاشة الدخول: نصفان — المشهد والهوية، ثم النموذج */
+.auth-screen { padding: 0; display: block; width: 100%; background: var(--najran-clay-soft); }
+body.auth-mode { display: block; }
+.auth-wrap { width: 100%; min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(360px, .85fr); }
+.auth-art { position: relative; overflow: hidden; isolation: isolate; background: linear-gradient(180deg, #0B1D2D, #0F2537 45%, #1B3550); display: flex; align-items: flex-start; }
+.auth-art .nj-scene { position: absolute; inset: auto 0 0 0; width: 100%; height: 58%; z-index: -1; }
+.auth-art-text { padding: 48px 48px 0; color: #fff; max-width: 30em; }
+.auth-art-text img { width: 72px; height: auto; border-radius: 14px; margin-bottom: 18px; filter: drop-shadow(0 4px 14px rgba(0,0,0,.35)); }
+.auth-art-text h2 { font-size: clamp(24px, 2.6vw, 32px); line-height: 1.3; }
+.auth-art-text p { color: #D7E1EA; margin: 10px 0 0; font-size: 15px; line-height: 1.8; }
+.auth-card { width: 100%; max-width: none; border-radius: 0; box-shadow: none; display: flex; flex-direction: column; justify-content: center; padding: 48px clamp(24px, 5vw, 64px); background: var(--panel); border-top: 4px solid var(--energy-orange); }
+.auth-card > * { width: 100%; max-width: 380px; margin-inline: auto; }
+.auth-brand img { width: 44px; height: auto; border-radius: 10px; }
+.auth-brand span { color: var(--mud); }
+.auth-form input:focus { border-color: var(--energy-orange); outline: 2px solid rgba(243,112,33,.25); }
+.auth-form .btn { background: var(--energy-orange); border-color: var(--energy-orange); color: #fff; }
+.auth-form .btn:hover { background: var(--energy-orange-hover); }
+@media (max-width: 860px) {
+  .auth-wrap { grid-template-columns: 1fr; }
+  .auth-art { min-height: 220px; }
+  .auth-art-text { padding: 24px 20px 0; }
+  .auth-art-text p { display: none; }
+  .auth-card { padding: 28px 20px 24px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .nj-scene path[stroke="#F37021"] { stroke-dasharray: 6 5; animation: nj-flow 3.2s linear infinite; }
+  @keyframes nj-flow { to { stroke-dashoffset: -22; } }
+}
