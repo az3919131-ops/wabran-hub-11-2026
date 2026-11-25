@@ -1,0 +1,12 @@
+/* هوية الوبران · الطاقة · نجران — تُحمَّل بعد ستايل اللوحة فتغيّر ألوان القالب فقط (ألوان أنواع المعدات تبقى كما هي لأنها تحمل معنى) */
+:root, :host {
+  --color-ink: #0F2537; --color-ink-2: #334155; --color-ink-3: #475569;
+  --color-line: #E2E8F0; --color-line-2: #EDF1F5;
+  --color-panel: #FFFFFF; --color-sheet: #F7F3EE; --color-wash: #F8FAFC;
+  --color-signal: #F37021; --color-signal-soft: #FDE9DC;
+  --color-alert: #C62B22; --color-alert-soft: #FDE4E2;
+  --font-sans: "IBM Plex Sans Arabic", "Cairo", ui-sans-serif, system-ui, sans-serif;
+}
+.edc { --e-bg: #F8FAFC; --e-surface: #FFFFFF; --e-surface2: #F7F3EE; --e-text: #1E293B; --e-muted: #475569; --e-line: #E2E8F0; --e-primary: #0F2537; --e-primary-ink: #fff; --e-accent: #C2531A; --e-accent-soft: #FDE9DC; }
+.edc.dark { --e-bg: #0D1B29; --e-surface: #13263A; --e-surface2: #0F2537; --e-text: #E6EDF4; --e-muted: #A3B4C5; --e-line: #24405C; --e-primary: #FF8A45; --e-primary-ink: #0F2537; --e-accent: #FF8A45; --e-accent-soft: #3A2414; }
+:focus-visible { outline-color: #F37021; }

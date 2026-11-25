@@ -1,0 +1,24 @@
+/* هوية الوبران · الطاقة · نجران — تُحمَّل بعد ستايل المنصة فتغيّر الألوان فقط */
+:root {
+  --navy: #0F2537; --steel: #475569; --ochre: #F37021; --brick: #C62B22;
+  --paper: #F8FAFC; --panel: #FFFFFF; --ink: #1E293B;
+  --line: rgba(15,37,55,.14); --line-strong: rgba(15,37,55,.34);
+  --ok: #057A55; --warn: #B45309; --bad: #C62B22; --none: #64748B; --done: #0E7490;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --navy: #0A1A28; --steel: #A3B4C5; --ochre: #FF8A45; --brick: #FF8C80;
+    --paper: #0D1B29; --panel: #13263A; --ink: #E6EDF4;
+    --line: rgba(230,237,244,.14); --line-strong: rgba(230,237,244,.32);
+    --ok: #4ADE9F; --warn: #F7B955; --bad: #FF8C80; --none: #8FA0B2; --done: #67C6E0;
+  }
+}
+:root[data-theme="dark"] {
+  --navy: #0A1A28; --steel: #A3B4C5; --ochre: #FF8A45; --brick: #FF8C80;
+  --paper: #0D1B29; --panel: #13263A; --ink: #E6EDF4;
+  --line: rgba(230,237,244,.14); --line-strong: rgba(230,237,244,.32);
+  --ok: #4ADE9F; --warn: #F7B955; --bad: #FF8C80; --none: #8FA0B2; --done: #67C6E0;
+}
+/* شعار الوبران بدل الحرف في الشريط الجانبي */
+.brand .logo { background: #1E4F9A url("https://wabran-najran-hub.netlify.app/img/wabran-logo.png") center / cover no-repeat; color: transparent; border-radius: 7px; flex-basis: 34px; width: 34px; height: 34px; }
+.side { border-inline-end: 1px solid rgba(200,155,110,.3); }
