@@ -1,0 +1,10 @@
+/* هوية الوبران · الطاقة · نجران — تُحمَّل بعد ستايل المنصة فتغيّر الألوان فقط */
+:root {
+  --bg: #F8FAFC; --card: #FFFFFF; --sunk: #F7F3EE; --ink: #1E293B; --muted: #475569; --line: #E2E8F0;
+  --navy: #0F2537; --blue: #2C5A85; --teal: #F37021; --good: #10B981; --warn: #F59E0B; --bad: #EF4444; --grid: #EDF1F5;
+}
+.dark {
+  --bg: #0D1B29; --card: #13263A; --sunk: #0F2133; --ink: #E6EDF4; --muted: #A3B4C5; --line: #24405C;
+  --navy: #0A1A28; --blue: #6FA3D0; --teal: #FF8A45; --good: #4ADE9F; --warn: #F7B955; --bad: #FF8C80; --grid: #1C3349;
+}
+:focus-visible { outline-color: #F37021; }

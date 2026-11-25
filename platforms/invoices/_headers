@@ -7,3 +7,5 @@
   Access-Control-Allow-Origin: *
 /fast-data.js
   Cache-Control: no-cache
+/wabran-theme.css
+  Cache-Control: no-cache
