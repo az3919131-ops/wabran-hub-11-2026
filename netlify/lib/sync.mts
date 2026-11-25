@@ -75,7 +75,23 @@ export function bigProjectsFrom(rep: any) {
       remaining: txt(c.R), finished: txt(c.S), uds: txt(c.T),
     };
   });
-  return { asof: rep.report_date || new Date().toISOString().slice(0, 10), source: rep.file_name || "najran-projects-dashboard", rows };
+  return { asof: rep.report_date || new Date().toISOString().slice(0, 10), source: rep.file_name || "najran-projects-dashboard", uploadedAt: rep.uploaded_at || null, title: pj.title || "", rows };
+}
+
+// تحديث فوري لمنصة المشاريع الكبيرة من آخر تقرير مرفوع (عند فتحها في البوابة)
+export async function syncBigProjects() {
+  const store = getStore({ name: "wabran-hub", consistency: "strong" });
+  const B = "https://najran-projects-dashboard.netlify.app/api/reports";
+  const list = await getJSON(B);
+  if (!Array.isArray(list) || !list.length) throw new Error("لا توجد تقارير مرفوعة في منصة المشاريع الكبيرة");
+  const latest = list.slice().sort((a: any, b: any) => String(b.report_date + b.uploaded_at).localeCompare(String(a.report_date + a.uploaded_at)))[0];
+  const cur: any = await store.get("ds_bigprojects", { type: "json" });
+  if (cur && cur.uploadedAt && cur.uploadedAt === latest.uploaded_at && cur.rows?.[0] && "paid" in cur.rows[0]) return { asof: cur.asof, changed: false };
+  const ds: any = bigProjectsFrom(await getJSON(B + "?id=" + encodeURIComponent(latest.id)));
+  if (!ds.rows.length) throw new Error("التقرير بلا صفوف");
+  ds.syncedAt = new Date().toISOString();
+  await store.setJSON("ds_bigprojects", ds);
+  return { asof: ds.asof, changed: true };
 }
 
 async function getJSON(url: string, headers: Record<string, string> = {}) {

@@ -233,6 +233,35 @@
     exportReport(kind, { title: p.name, desc, head, rows, count: A.W(list), file: p.id });
   }
 
+  /* المؤشرات الرئيسية لمنصة المشاريع الكبيرة — نفس بطاقات المنصة الأصلية ومعادلاتها */
+  function bpKpis(A, ds) {
+    const rows = A.rows, has = (f) => rows.filter((r) => r[f] != null && r[f] !== ""), sum = (f) => rows.reduce((t, r) => t + (Number(r[f]) || 0), 0);
+    const mil = (v) => (Math.abs(v) >= 1e6 ? `${(v / 1e6).toFixed(2)}<small>مليون</small>` : `${U.fmt(Math.round(v))}<small>ر.س</small>`);
+    const est = sum("estCost"), act = sum("actCost");
+    const partialN = rows.filter((r) => Number(r.partial) > 0).length, finalN = rows.filter((r) => Number(r.final) > 0).length, finalSt = rows.filter((r) => /نهائي/.test(r.payStatus || "")).length;
+    const paidRows = has("paid").length ? has("paid") : rows.filter((r) => Number(r.partial) > 0 || Number(r.final) > 0);
+    const paid = paidRows.reduce((t, r) => t + (Number(r.paid != null ? r.paid : (Number(r.partial) || 0) + (Number(r.final) || 0)) || 0), 0);
+    const remaining = rows.filter((r) => { const x = String(r.remaining || "").trim(); return x && !/^(منتهي|تم الانتهاء( بالكامل)?)$/.test(x); }).length;
+    const over = rows.filter((r) => Number(r.pct) > 100).length;
+    const up = ds.uploadedAt ? new Date(ds.uploadedAt) : null;
+    const card = (col, t, v, s, link) => `<div class="pk" style="--c:${col}"${link ? ` role="link" tabindex="0" data-go="${link}"` : ""}><span class="pk-t">${t}</span><b class="pk-v">${v}</b><span class="pk-s">${s}</span></div>`;
+    const go = (st) => `#/app/bigprojects/all`;
+    return `<section class="section"><div class="pk-head"><h2>المؤشرات الرئيسية</h2><span>من آخر تقرير مرفوع في منصة المشاريع الكبيرة${ds.title ? ": " + esc(ds.title.replace(/\s+/g, " ")) : ""}.</span></div>
+      <div class="pk-grid four bp">
+        ${card("#0F2537", "إجمالي عدد المشاريع", U.fmt(rows.length), "مشاريع أكبر من 100 ألف")}
+        ${card("#0EA5E9", "إجمالي الأجور طبقاً للفواتير", mil(sum("invoice")), `ر.س · ${has("invoice").length} مشروعاً لها قيمة`)}
+        ${card("#0F2537", "تكلفة العمالة التقديرية", mil(est), `ر.س · ${has("estCost").length} مشروعاً`)}
+        ${card("#0EA5E9", "تكلفة العمالة حسب المنفذ", mil(act), `ر.س · ${has("actCost").length} مشروعاً`)}
+        ${card("#10B981", "نسبة التنفيذ المالية الإجمالية", (est ? ((act / est) * 100).toFixed(1) : "—") + "%", "إجمالي المنفذ ÷ إجمالي التقديري")}
+        ${card("#10B981", "إجمالي الصرف الجزئي", mil(sum("partial")), `ر.س · ${partialN} مشروعاً بمبالغ`)}
+        ${card("#10B981", "إجمالي الصرف النهائي المسجل", mil(sum("final")), `ر.س · ${finalN} مشروعاً بمبالغ (${finalSt} بموقف صرف نهائي)`)}
+        ${card("#0F2537", "إجمالي الصرف (جزئي + نهائي)", mil(paid), `ر.س · ${paidRows.length} مشروعاً`)}
+        ${card("#F59E0B", "مشاريع لديها أعمال متبقية", U.fmt(remaining), "اضغط للفلترة في التقارير", go())}
+        ${card("#8B5CF6", "نسبة تنفيذ أكبر من 100%", U.fmt(over), "اضغط للفلترة في التقارير", go())}
+        ${card("#64748B", "تاريخ آخر تحديث", U.longDate(new Date(ds.asof)), up ? "رُفع " + up.toLocaleString("ar-SA-u-nu-latn", { dateStyle: "short", timeStyle: "short" }) : "")}
+      </div></section>`;
+  }
+
   /* المؤشرات الرئيسية لمنصة مستهدف الإنشاءات — بنفس تصميم المنصة الأصلية */
   function projKpis(A) {
     const rows = A.live, tot = rows.reduce((t, r) => t + (Number(r.amount) || 0), 0);
@@ -521,6 +550,12 @@
   });
 
   function linkedApp(p, tab) {
+    if (p.id === "bigprojects" && !ui.bpRefreshed) {
+      ui.bpRefreshed = true; // تحديث فوري من آخر تقرير مرفوع في المنصة الأصلية
+      fetch("/api/refresh?id=bigprojects", { headers: HUB.Auth.headers() }).then((r) => r.json()).then(async (j) => {
+        if (j && j.changed) { const v = await Store.get("ds_bigprojects"); if (v && v.rows && v.rows.length) { S.ds.bigprojects = v; if (parse().app === "bigprojects") render(); } }
+      }).catch(() => {});
+    }
     const ds = S.ds[p.id];
     const A = ds ? DS.analyze(p.id, ds) : null;
     const ev = E.items.find((i) => i.id === p.id);
@@ -551,7 +586,7 @@
       const useAmt = p.id === "invoices" || p.id === "schedule";
       const mxM = Math.max(1, ...A.months.map((m) => (useAmt ? m.amt : m.n)));
       const d0 = A.dims[0];
-      body = stale + (p.id === "projects" ? projKpis(A) : kpis(k)) + `<p class="meta">${esc(ev.issue)}</p>
+      body = stale + (p.id === "projects" ? projKpis(A) : p.id === "bigprojects" ? bpKpis(A, ds) : kpis(k)) + `<p class="meta">${esc(ev.issue)}</p>
         <div class="section two">
           ${p.id === "schedule" ? (() => { const byDay = new Map(); A.live.forEach((r) => byDay.set(r.date, (byDay.get(r.date) || 0) + (r.value || 0))); const ds14 = [...byDay].sort((x, y) => (x[0] < y[0] ? 1 : -1)).slice(0, 14); return `<div class="panel"><h3>آخر 14 يوم عمل (ريال)</h3><p class="hint">قيمة المنفذ في كل يوم مسجل.</p>${barList(ds14.map(([d, v]) => ({ l: U.dmy(d), v: Math.round(v), c: "var(--ok)" })), Math.max(1, ...ds14.map((x) => x[1])), money)}</div>`; })() : `<div class="panel"><h3>حسب الحالة</h3><p class="hint">${p.id === "invoices" ? "عدد الفواتير في كل تصنيف." : "أين تقف السجلات الآن."}</p>${barList(A.byCls.map((c) => ({ l: c.label, v: c.n, c: KCOL[c.kind] })), mxC)}</div>`}
           <div class="panel"><h3>${useAmt ? (p.id === "schedule" ? "قيمة المنفذ شهرياً (ريال)" : "قيمة الفواتير شهرياً (ريال)") : "الحركة الشهرية"}</h3><p class="hint">آخر 12 شهراً حسب ${esc(s.cols[s.dateKey].label)}.</p>${barList(A.months.slice().reverse().map((m) => ({ l: m.label + " " + m.key.slice(0, 4), v: useAmt ? Math.round(m.amt) : m.n, c: m.done && !useAmt && m.done === m.n ? "var(--ok)" : "var(--ink)" })), mxM, useAmt ? money : null)}</div>
