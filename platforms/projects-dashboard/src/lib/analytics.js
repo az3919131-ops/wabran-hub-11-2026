@@ -43,7 +43,8 @@ const FIELD_KEYS = {
   exec: ['تكلفه العماله حسب المنفذ'],
   ratio: ['نسبه التنفيذ'],
   delivered: ['تاريخ تسليم امر العمل'],
-  partial: ['مبلغ الصرف الجزئي', 'الصرف الجزئي'],
+  // عمود الصرف: «قيمة الصرف (جزئي/نهائي)» أو «صرف جزئي/نهائي» أو «الصرف الجزئي»
+  partial: ['قيمه الصرف', 'صرف جزئي/نهائي', 'مبلغ الصرف الجزئي', 'الصرف الجزئي', 'صرف جزئي'],
   certDate: ['تاريخ اصدار الشهاده'],
   final: ['مبلغ الصرف النهائي'],
   claimNo: ['رقم المستخلص'],
@@ -76,6 +77,8 @@ export function projectRows(pd) {
   if (!pd) return [];
   const m = mapColumns(pd.columns);
   const g = (row, f) => (m[f] ? row.cells[m[f]] : undefined);
+  // العمود مشترك (جزئي/نهائي) إذا ذكر عنوانه النهائي أيضاً
+  const combined = !!m.partial && /نهائي/.test(normAr(pd.columns.find((c) => c.col === m.partial)?.label));
   return pd.rows.map((row) => {
     const woRaw = g(row, 'wo');
     const p = {
@@ -89,8 +92,7 @@ export function projectRows(pd) {
       est: numOrNull(g(row, 'est')),
       exec: numOrNull(g(row, 'exec')),
       ratio: ratioVal(g(row, 'ratio')),
-      partial: numOrNull(g(row, 'partial')),
-      final: numOrNull(g(row, 'final')),
+      ...splitPaid(numOrNull(g(row, 'partial')), numOrNull(g(row, 'final')), txt(g(row, 'claim')), combined),
       claimNo: txt(g(row, 'claimNo')),
       claim: txt(g(row, 'claim')),
       materials: txt(g(row, 'materials')),
@@ -120,6 +122,25 @@ export function projectRows(pd) {
     p.hasRemaining = hasRemaining(p);
     return p;
   });
+}
+
+/**
+ * توزيع مبلغ الصرف على جزئي/نهائي:
+ * - عمود مشترك «قيمة الصرف (جزئي/نهائي)»: يُصنف حسب «موقف صرف المستخلص» (يحتوي جزئي/نهائي)،
+ *   والصرف النهائي يُؤخذ من «مبلغ الصرف النهائي» إن وُجدت قيمة.
+ * - عمود «الصرف الجزئي» المنفصل (الملفات القديمة): كما هو.
+ */
+function splitPaid(paid, finalCol, claim, combined) {
+  if (!combined) return { paid, partial: paid, final: finalCol, paidUnclassified: null };
+  const c = normAr(claim);
+  const isPartial = /جزئي/.test(c), isFinal = /نهائي/.test(c);
+  return {
+    paid,
+    partial: isPartial && !isFinal ? paid : null,
+    final: isNum(finalCol) ? finalCol : isFinal ? paid : null,
+    finalCol,
+    paidUnclassified: isNum(paid) && !isPartial && !isFinal && !isNum(finalCol) ? paid : null,
+  };
 }
 
 export const ratioBucket = (r) =>
@@ -154,6 +175,12 @@ export function projectKpis(list) {
     partialN: list.filter((p) => isNum(p.partial)).length,
     final: sum(list.map((p) => p.final)),
     finalN: list.filter((p) => isNum(p.final)).length,
+    partialStatusN: list.filter((p) => /جزئي/.test(normAr(p.claim)) && !/نهائي/.test(normAr(p.claim))).length,
+    finalStatusN: list.filter((p) => /نهائي/.test(normAr(p.claim))).length,
+    paid: sum(list.map((p) => p.paid)),
+    paidN: list.filter((p) => isNum(p.paid)).length,
+    unclassified: sum(list.map((p) => p.paidUnclassified)),
+    unclassifiedN: list.filter((p) => isNum(p.paidUnclassified)).length,
     byStatus: countBy(list, 'status'),
     remainingN: list.filter((p) => p.hasRemaining).length,
     over100: list.filter((p) => isNum(p.ratio) && p.ratio > 1).length,
@@ -166,10 +193,12 @@ export function totalsCheck(pd) {
   const m = mapColumns(pd.columns);
   const list = projectRows(pd);
   const out = [];
+  // يُطابَق مجموع عمود الصرف (جزئي+نهائي) وعمود النهائي الخام مع صف الإجمالي
+  const field = { partial: 'paid', final: 'finalCol' };
   for (const f of ['est', 'exec', 'partial', 'final', 'invoice']) {
     const xv = m[f] && pd.total.cells[m[f]];
     if (!isNum(xv)) continue;
-    const calc = sum(list.map((p) => p[f]));
+    const calc = sum(list.map((p) => p[field[f]] !== undefined ? p[field[f]] : p[f]));
     out.push({ field: f, label: pd.columns.find((c) => c.col === m[f])?.label, excel: xv, calc, ok: Math.abs(xv - calc) < 1 });
   }
   return out;
@@ -302,6 +331,7 @@ export function compareReports(prev, cur) {
     ['نسبة التنفيذ المالية الإجمالية', kA.ratio, kB.ratio, 'pct'],
     ['إجمالي الصرف الجزئي', kA.partial, kB.partial, 'sar'],
     ['إجمالي الصرف النهائي', kA.final, kB.final, 'sar'],
+    ['إجمالي الصرف (جزئي + نهائي)', kA.paid, kB.paid, 'sar'],
     ['مشاريع لديها أعمال متبقية', kA.remainingN, kB.remainingN, 'n'],
   ];
   // مراحل التحصيل (الجدول الأول) بمطابقة عنوان المرحلة

@@ -89,14 +89,15 @@ export default function Projects({ ctx }) {
       </Panel>
 
       {/* المؤشرات */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
         <Kpi icon={Building2} label="إجمالي عدد المشاريع" value={fmtNum(k.count)} sub={active ? `من أصل ${kAll.count} (مفلتر)` : pd.sheet} />
         <Kpi icon={Banknote} tone="blue" label="إجمالي الأجور طبقاً للفواتير" value={fmtM(k.invoice)} sub={`ر.س · ${k.invoiceN} مشروعاً لها قيمة`} />
         <Kpi icon={Calculator} tone="navy" label="تكلفة العمالة التقديرية" value={fmtM(k.est)} sub={`ر.س · ${k.estN} مشروعاً`} />
         <Kpi icon={HardHat} tone="blue" label="تكلفة العمالة حسب المنفذ" value={fmtM(k.exec)} sub={`ر.س · ${k.execN} مشروعاً`} />
         <Kpi icon={Gauge} tone={k.ratio > 1 ? 'purple' : 'green'} label="نسبة التنفيذ المالية الإجمالية" value={fmtPct(k.ratio)} sub="إجمالي المنفذ ÷ إجمالي التقديري" />
-        <Kpi icon={Coins} tone="green" label="إجمالي الصرف الجزئي" value={fmtM(k.partial)} sub={`ر.س · ${k.partialN} مشروعاً`} />
-        <Kpi icon={BadgeCheck} tone="green" label="إجمالي الصرف النهائي المسجل" value={k.finalN ? fmtM(k.final) : '0'} sub={k.finalN ? `ر.س · ${k.finalN} مشروعاً` : 'لا توجد مبالغ مسجلة في الملف'} />
+        <Kpi icon={Coins} tone="green" label="إجمالي الصرف الجزئي" value={fmtM(k.partial)} sub={`ر.س · ${k.partialN} مشروعاً بمبالغ${k.partialStatusN !== k.partialN ? ` (${k.partialStatusN} بموقف صرف جزئي)` : ''}`} />
+        <Kpi icon={BadgeCheck} tone="green" label="إجمالي الصرف النهائي المسجل" value={k.finalN ? fmtM(k.final) : '0'} sub={k.finalN ? `ر.س · ${k.finalN} مشروعاً بمبالغ${k.finalStatusN !== k.finalN ? ` (${k.finalStatusN} بموقف صرف نهائي)` : ''}` : 'لا توجد مبالغ مسجلة في الملف'} />
+        <Kpi icon={Banknote} tone="navy" label="إجمالي الصرف (جزئي + نهائي)" value={fmtM(k.paid)} sub={`ر.س · ${k.paidN} مشروعاً${k.unclassifiedN ? ` · منها ${fmtM(k.unclassified)} بدون موقف صرف (${k.unclassifiedN})` : ''}`} />
         <Kpi icon={Hourglass} tone="orange" label="مشاريع لديها أعمال متبقية" value={fmtNum(k.remainingN)} sub="اضغط للفلترة" onClick={() => set('remaining', 'yes')} active={f.remaining === 'yes'} />
         <Kpi icon={Trophy} tone="purple" label="نسبة تنفيذ أكبر من 100%" value={fmtNum(k.over100)} sub="اضغط للفلترة" onClick={() => set('bucket', 'أكبر من 100%')} active={f.bucket === 'أكبر من 100%'} />
         <Kpi icon={CalendarClock} tone="slate" label="تاريخ آخر تحديث" value={fmtDate(current.report_date)} sub={`رُفع ${new Date(current.uploaded_at).toLocaleString('ar-SA-u-ca-gregory-nu-latn')}`} />
