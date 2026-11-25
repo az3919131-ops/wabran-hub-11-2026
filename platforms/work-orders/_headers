@@ -7,3 +7,5 @@
   Cache-Control: public, max-age=31536000, immutable
 /wabran-sso.js
   Cache-Control: no-cache
+/wabran-theme.css
+  Cache-Control: no-cache

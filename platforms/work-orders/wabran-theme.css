@@ -1,0 +1,25 @@
+/* هوية الوبران · الطاقة · نجران — تُحمَّل بعد ستايل المنصة فتغيّر الألوان فقط (ألوان الحالات تبقى) */
+:root { --navy: #0F2537; --navy-700: #1A3550; --teal: #F37021; --canvas: #F8FAFC; }
+body, .bg-steel-50, .btn-outline:hover, .hover\:bg-steel-50:hover { background-color: #F8FAFC; }
+.text-ink, .panel-title, .hover\:text-ink:hover { color: #1E293B; }
+.bg-navy-900 { background-color: #0F2537; }
+.bg-navy-700 { background-color: #1A3550; }
+.bg-navy-600 { background-color: #2C5A85; }
+.border-navy-600 { border-color: #2C5A85; }
+.text-navy-700 { color: #0F2537; }
+/* الإجراء الرئيسي برتقالي الطاقة، والإجراء الثانوي كحلي */
+.btn-primary { background-color: #F37021; color: #fff; }
+.btn-primary:hover { background-color: #D95E16; }
+.btn-teal { background-color: #0F2537; color: #fff; }
+.btn-teal:hover { background-color: #1A3550; }
+.bg-teal-600 { background-color: #F37021; }
+.border-teal-600 { border-color: #F37021; }
+.border-teal-100 { border-color: #FDE9DC; }
+.ring-teal-600 { --tw-ring-color: #F37021; }
+.text-teal-700, .hover\:text-teal-700:hover { color: #C2531A; }
+.accent-teal-600 { accent-color: #F37021; }
+.input:focus { border-color: #F37021; }
+/* اللون الفاتح على الشريط الداكن (العنصر النشط) */
+.bg-\[\#5FC6BF\] { background-color: #FF8A45; }
+.text-\[\#5FC6BF\] { color: #FFB37F; }
+:focus-visible { outline-color: #F37021; }
