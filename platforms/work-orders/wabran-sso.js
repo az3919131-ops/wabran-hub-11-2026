@@ -13,11 +13,9 @@
     if (booted) return; booted = true;
     var s = document.createElement("script"); s.type = "module"; s.crossOrigin = ""; s.src = APP; document.head.appendChild(s);
   }
-  function valid() {
-    try { var v = JSON.parse(localStorage.getItem(KEY) || "null"); return v && v.access_token && (v.expires_at || 0) > Date.now() / 1000 + 120; } catch (e) { return false; }
-  }
   var framed = false; try { framed = window.self !== window.top; } catch (e) { framed = true; }
-  if (!framed || valid()) return boot();
+  if (!framed) return boot();
+  // داخل منصة الوبران: جلسة جديدة دائماً (حساب المستخدم نفسه إن كان مربوطاً، وإلا حساب المشاهد)
   var t = setTimeout(boot, 6000);
   window.addEventListener("message", function (e) {
     if (e.origin !== HUB || !e.data || e.data.type !== "wabran-token" || !e.data.token || booted) return;

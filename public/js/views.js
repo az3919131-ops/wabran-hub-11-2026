@@ -398,7 +398,8 @@
       </div>
       <p class="msg" id="woMsg" role="status">${esc(ui.woMsg || "")}</p></section>
       ${rows.length ? `<section class="section panel"><div class="wo-bar"><h3>المراجعة: ${rows.length} صف${bad ? ` · <span class="pill p-bad">${bad} ناقص</span>` : ""}${dup ? ` · <span class="pill p-warn">${dup} مفتاح مكرر</span>` : ""}</h3>
-        <div class="acts"><button class="btn pri" type="button" data-wo="xlsx">تنزيل ملف الاستيراد (Excel)</button><a class="btn" href="${WO_IMPORT}" target="_blank" rel="noopener">فتح مركز الاستيراد في المنصة ↗</a><button class="btn" type="button" data-wo="clear">مسح</button></div></div>
+        <div class="acts"><select id="woMode" aria-label="طريقة الاستيراد"><option value="upsert">إضافة الجديد وتحديث الموجود</option><option value="append">إضافة الجديد فقط</option><option value="update">تحديث الموجود فقط</option></select>
+          <button class="btn pri" type="button" data-wo="direct">استيراد مباشرة للمنصة</button><button class="btn" type="button" data-wo="xlsx">تنزيل ملف Excel</button><button class="btn" type="button" data-wo="clear">مسح</button></div></div>
         ${ui.woNotes ? `<div class="note">${esc(ui.woNotes)}</div>` : ""}
         <div class="tbl"><table class="wo-t"><thead><tr><th>#</th>${show.map((k) => `<th>${esc(WOF.find((f) => f[0] === k)[1])}</th>`).join("")}<th>ملاحظات</th><th></th></tr></thead><tbody>
         ${rows.map((r, i) => { const is = woIssues(r); return `<tr class="${is.length ? "wo-bad" : ""}"><td class="num">${i + 1}</td>${show.map((k) => `<td><input data-woi="${i}" data-wok="${k}" value="${esc(r[k] == null ? "" : r[k])}" ${k === "wo_status" ? 'list="woStL"' : k === "payment_status" ? 'list="woPayL"' : ""} aria-label="${esc(WOF.find((f) => f[0] === k)[1])}"></td>`).join("")}<td class="wo-is">${esc(is.join("، "))}</td><td><button class="btn sm" type="button" data-wo="del" data-i="${i}" aria-label="حذف الصف">حذف</button></td></tr>`; }).join("")}
@@ -448,6 +449,47 @@
     try { woSetMsg("جارٍ استخراج أوامر العمل من النص بالذكاء الاصطناعي…"); const j = await woAI({ kind: "text", text: t }); const T = Object.fromEntries(WOF.map((x) => [x[0], x[2]])); const rows = (j.rows || []).map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, T[k] ? woVal(T[k], v) : v]))); if (!rows.length) throw new Error("لم يُعثر على أوامر عمل في النص"); woAdd(rows, j.notes); }
     catch (e) { woSetMsg(e.message); }
   }
+  // استيراد مباشر للمنصة بحساب المستخدم نفسه فيها (نفس طريقة «مركز الاستيراد»: دفعة استيراد + import_work_orders)
+  const WO_SB = "https://qcrzkqtorraegjtdpija.supabase.co";
+  const WO_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjcnprcXRvcnJhZWdqdGRwaWphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ5NDM0OTQsImV4cCI6MjExMDUxOTQ5NH0.StS5c1igG5tL_vgmpsyu-u3UZO3WXsoVNJSNZ9G0Eo8"; // المفتاح العام للمنصة (منشور في واجهتها)
+  async function woDirect() {
+    const all = ui.woRows || [], mode = (document.getElementById("woMode") || {}).value || "upsert";
+    const seen = new Set(), rows = [];
+    let rejected = 0, dups = 0;
+    all.forEach((r) => { if (!r.wo_number || !r.contract_number || !r.work_type_code) { rejected++; return; } const k = [r.wo_number, r.contract_number, r.work_type_code].join("|"); if (seen.has(k)) { dups++; return; } seen.add(k); rows.push(r); });
+    if (!rows.length) return woSetMsg("لا توجد صفوف مكتملة (رقم أمر العمل + رقم العقد + رمز النوع) للاستيراد.");
+    if (!confirm(`استيراد ${rows.length} أمر عمل إلى منصة إسناد أوامر العمل (${mode === "append" ? "إضافة الجديد فقط" : mode === "update" ? "تحديث الموجود فقط" : "إضافة وتحديث"})؟`)) return;
+    try {
+      woSetMsg("جارٍ فتح جلستك في منصة أوامر العمل…");
+      const sr = await fetch("/api/wo-session", { headers: HUB.Auth.headers() }); const sj = await sr.json().catch(() => ({}));
+      if (!sr.ok) throw new Error(sj.error || "تعذّر فتح جلسة المنصة");
+      if (!sj.own) throw new Error("حسابك غير مربوط بمنصة أوامر العمل بعد: اربطه من «إدارة البوابة ← حسابي» بكلمة مرورك في المنصة، ثم أعد المحاولة.");
+      const tok = sj.session.access_token, uid = sj.session.user.id;
+      const H = { authorization: "Bearer " + tok, "content-type": "application/json" };
+      const call = async (path, method, body, prefer) => {
+        const r = await fetch(WO_SB + path, { method, headers: { ...H, apikey: WO_ANON_KEY, ...(prefer ? { Prefer: prefer } : {}) }, body: body ? JSON.stringify(body) : undefined });
+        const t = await r.text(); let j = null; try { j = t ? JSON.parse(t) : null; } catch (e) {}
+        if (!r.ok) throw new Error((j && (j.message || j.error)) || "خطأ " + r.status);
+        return j;
+      };
+      const prof = await call(`/rest/v1/users_profiles?id=eq.${uid}&select=role,is_active`, "GET");
+      const role = prof && prof[0] && prof[0].is_active ? prof[0].role : null;
+      if (role !== "admin" && role !== "data_entry") throw new Error("حسابك في منصة أوامر العمل لا يملك صلاحية الاستيراد (يلزم مدير أو إدخال بيانات).");
+      const T = Object.fromEntries(WOF.map((f) => [f[0], f[2]]));
+      const rec = (r) => { const o = { raw_original: {} }; WOF.forEach(([k, l, t]) => { let v = r[k]; if (v === "" || v === undefined) v = null; if (v != null && t === "money") v = Number(v); if (v != null && t === "date" && !/^\d{4}-\d{2}-\d{2}$/.test(String(v))) v = null; if (v != null && t !== "money") v = String(v); o[k] = v; if (v != null) o.raw_original[l] = v; }); return o; };
+      const batch = (await call("/rest/v1/import_batches", "POST", { file_name: "منصة الوبران — إضافة أوامر عمل", sheet_name: "البوابة", mode, total_rows: all.length, status: "running", header_mapping: Object.fromEntries(WOF.map(([k, l]) => [l, k])), created_by: uid }, "return=representation"))[0];
+      const sum = { inserted: 0, updated: 0, unchanged: 0, skipped: 0 };
+      for (let i = 0; i < rows.length; i += 400) {
+        woSetMsg(`جارٍ الاستيراد… ${Math.min(i + 400, rows.length)} من ${rows.length}`);
+        const g = await call("/rest/v1/rpc/import_work_orders", "POST", { p_batch: batch.id, p_mode: mode, p_rows: rows.slice(i, i + 400).map(rec) });
+        ["inserted", "updated", "unchanged", "skipped"].forEach((k) => (sum[k] += (g && g[k]) || 0));
+      }
+      await call(`/rest/v1/import_batches?id=eq.${batch.id}`, "PATCH", { status: rejected + dups ? "completed_with_errors" : "completed", inserted: sum.inserted, updated: sum.updated, unchanged: sum.unchanged, skipped: sum.skipped, rejected, duplicates_in_file: dups, needs_review: 0, summary: { sent: rows.length, source: "wabran-hub" }, finished_at: new Date().toISOString() });
+      ui.woRows = all.filter((r) => !rows.includes(r));
+      woSetMsg(`اكتمل الاستيراد: ${U.fmt(sum.inserted)} إضافة، ${U.fmt(sum.updated)} تحديث، ${U.fmt(sum.unchanged)} بلا تغيير، ${U.fmt(sum.skipped)} متجاوز${rejected ? `، ${rejected} ناقص بقي للمراجعة` : ""}${dups ? `، ${dups} مكرر` : ""}. يظهر في سجل الاستيراد بالمنصة.`);
+      render();
+    } catch (e) { woSetMsg("تعذّر الاستيراد: " + e.message); }
+  }
   function woXlsx() {
     const rows = ui.woRows || [];
     if (!window.XLSX) return woSetMsg("مكتبة Excel لم تُحمَّل بعد، أعد المحاولة");
@@ -466,6 +508,7 @@
     const b = e.target.closest("[data-wo]"); if (!b) return;
     const a = b.dataset.wo;
     if (a === "paste") woPaste();
+    else if (a === "direct") woDirect();
     else if (a === "xlsx") woXlsx();
     else if (a === "clear") { ui.woRows = []; ui.woNotes = ""; woSetMsg(""); render(); }
     else if (a === "del") { ui.woRows.splice(+b.dataset.i, 1); render(); }
@@ -783,7 +826,10 @@
     view.innerHTML = `<div class="app-head"><div>${BACK}<h1>إدارة البوابة</h1><p>${isAdmin ? "الحسابات والصلاحيات لكل منصات الوبران — حساب واحد لكل المنصات." : "حسابك في منصة الوبران."}</p></div></div>
       <div class="section two"><div class="panel"><h3>حسابي</h3><p class="hint">${esc(u.name)} · <span class="ltr">${esc(u.email)}</span> · ${esc(u.roleLabel)}</p>
         <form class="form" id="cpForm"><label class="f">كلمة المرور الحالية<input type="password" id="cpCur" required dir="ltr" autocomplete="current-password"></label><label class="f">كلمة المرور الجديدة<input type="password" id="cpNew" minlength="6" required dir="ltr" autocomplete="new-password"></label><div><button class="btn pri" type="submit">تغيير كلمة المرور</button></div></form>
-        <p class="msg" id="cpMsg" role="status"></p><button class="btn" type="button" data-logout>تسجيل الخروج</button></div>
+        <p class="msg" id="cpMsg" role="status"></p><button class="btn" type="button" data-logout>تسجيل الخروج</button>
+        ${(u.access.assign || "none") !== "none" ? `<div class="wo-link"><h4>منصة إسناد أوامر العمل</h4>${u.woLinked
+          ? `<p><span class="pill p-ok">مربوط بحسابك</span> تفتح المنصة داخل البوابة بحسابك (<span class="ltr">${esc(u.email)}</span>) وصلاحياتك فيها، ويعمل الاستيراد المباشر من «إضافة أوامر عمل».</p><button class="btn sm" type="button" data-wolink="off">فك الربط</button>`
+          : `<p><span class="pill p-none">غير مربوط</span> يُربط تلقائياً عند دخول البوابة إن كانت كلمة مرورك هنا هي نفسها في المنصة. أو اكتب كلمة مرورك في منصة أوامر العمل لنفس البريد:</p><form class="form" id="woLinkForm"><label class="f">كلمة مرور منصة أوامر العمل<input type="password" id="woLinkPw" required dir="ltr" autocomplete="off"></label><button class="btn pri" type="submit">ربط حسابي</button></form>`}<p class="msg" id="woLinkMsg" role="status"></p></div>` : ""}</div>
         <div class="panel"><h3>منصاتي وصلاحياتي</h3><div class="tbl"><table><thead><tr><th>المنصة</th><th>الصلاحية</th></tr></thead><tbody>${REGISTRY_ALL.map((p) => `<tr><td>${esc(p.name)}</td><td>${AUTHUI.LV[lvl(p.id)]}</td></tr>`).join("")}</tbody></table></div>
         <p class="hint" style="margin-top:10px">صلاحيات عامة: ${u.caps.map((c) => AUTHUI.CAPL[c]).join("، ") || "لا يوجد"}</p>
         <div class="chips">${["auto:تلقائي", "light:فاتح", "dark:داكن"].map((x) => { const [k, l] = x.split(":"); return `<button class="chip" type="button" data-theme="${k}" aria-pressed="${(U.ls.get("theme") || "auto") === k}">المظهر: ${l}</button>`; }).join("")}</div></div></div>
@@ -815,7 +861,7 @@
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
   document.addEventListener("click", async (ev) => {
-    const t = ev.target.closest("[data-schm],[data-pkcls],[data-logout],[data-dsprint],[data-dspng],[data-edcprint],[data-ddst],[data-ddexp],[data-hper],[data-dexp],[data-dlexp],[data-lexp],[data-dfreset],[data-lfreset],[data-licper],#syncNow,[data-dsf],[data-tpl],[data-dscsv],[data-dsclear],[data-dsparse],#dsCommit,#dsCancel,[data-go],[data-licf],[data-csv],[data-theme],#licCommit,#licCancel,#cardCommit,#cardCancel,#genSummary,#settingsBtn,#menuBtn");
+    const t = ev.target.closest("[data-wolink],[data-schm],[data-pkcls],[data-logout],[data-dsprint],[data-dspng],[data-edcprint],[data-ddst],[data-ddexp],[data-hper],[data-dexp],[data-dlexp],[data-lexp],[data-dfreset],[data-lfreset],[data-licper],#syncNow,[data-dsf],[data-tpl],[data-dscsv],[data-dsclear],[data-dsparse],#dsCommit,#dsCancel,[data-go],[data-licf],[data-csv],[data-theme],#licCommit,#licCancel,#cardCommit,#cardCancel,#genSummary,#settingsBtn,#menuBtn");
     if (!t) return;
     if (t.dataset.go) { location.hash = t.dataset.go; return; }
     if (t.id === "menuBtn") { const o = $("#side").classList.toggle("open"); t.setAttribute("aria-expanded", String(o)); return; }
@@ -846,6 +892,7 @@
         rows: list.map((r) => [r.id, r.wo, r.loc, r.eng, U.dmy(r.end), r.st, r.clsName, r.closed ? "مغلقة" : r.over > 0 ? "متجاوزة" : "سارية", r.closed ? "" : r.over, r.why || "", r.act]) });
       return;
     }
+    if (t.dataset.wolink === "off") { if (!confirm("فك ربط حسابك بمنصة أوامر العمل؟")) return; await fetch("/api/auth/wo-unlink", { method: "POST", headers: HUB.Auth.headers() }); HUB.user.woLinked = false; render(); return; }
     if (t.dataset.schm !== undefined) { if (t.dataset.schm) { ui.schM = t.dataset.schm; render(); } return; }
     if (t.dataset.pkcls) { ev.preventDefault(); ui.df = { dims: {}, state: "", from: "", to: "" }; ui.dsQ = ""; ui.dsF = t.dataset.pkcls; location.hash = "#/app/projects/all"; return; }
     if (t.dataset.dfreset !== undefined) { ui.df = { dims: {}, state: "", from: "", to: "" }; ui.dsF = ""; ui.dsQ = ""; render(); return; }
@@ -936,6 +983,13 @@
     rd.readAsArrayBuffer(f);
   });
   document.addEventListener("submit", async (ev) => {
+    if (ev.target.id === "woLinkForm") {
+      ev.preventDefault(); const m = $("#woLinkMsg"); m.className = "msg"; m.textContent = "جارٍ التحقق من الدخول لمنصة أوامر العمل…";
+      const r = await fetch("/api/auth/wo-link", { method: "POST", headers: { "content-type": "application/json", ...HUB.Auth.headers() }, body: JSON.stringify({ password: $("#woLinkPw").value }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { m.className = "msg err"; m.textContent = j.error || "تعذّر الربط"; return; }
+      HUB.user.woLinked = true; render(); return;
+    }
     if (ev.target.id === "snapForm") {
       ev.preventDefault();
       const fd = new FormData(ev.target), id = ev.target.dataset.app, p = reg(id), m = $("#snapMsg");

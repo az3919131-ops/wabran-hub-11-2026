@@ -1,6 +1,7 @@
 import type { Config } from "@netlify/functions";
 import crypto from "node:crypto";
 import { getUsers, saveUsers, getResets, saveResets, normEmail, hashPassword, checkPassword, signToken, currentUser, publicUser, json, cors, cleanPerms, sendMail, ROLES, PLATFORMS, LEVELS, CAPS } from "../lib/auth.mts";
+import { woLink, woUnlink, woLinked } from "../lib/wo-link.mts";
 
 // الدخول الموحد لمنصة الوبران: /api/auth/login | me | forgot | reset | password | bootstrap | meta
 const HUB = "https://wabran-najran-hub.netlify.app/";
@@ -15,7 +16,7 @@ export default async (req: Request, context: any) => {
 
   if (action === "me") {
     const u = await currentUser(req);
-    return u ? json(req, { user: publicUser(u) }) : json(req, { error: "غير مسجل الدخول" }, 401);
+    return u ? json(req, { user: { ...publicUser(u), woLinked: await woLinked(u.id).catch(() => false) } }) : json(req, { error: "غير مسجل الدخول" }, 401);
   }
 
   if (action === "login" && req.method === "POST") {
@@ -28,6 +29,8 @@ export default async (req: Request, context: any) => {
     }
     fails.delete(ip);
     u.lastLogin = new Date().toISOString(); await saveUsers(users);
+    // نفس البريد وكلمة المرور في منصة إسناد أوامر العمل؟ يُربط الحساب تلقائياً (بلا أثر إن لم يتطابقا)
+    await woLink(u.id, u.email, String(body.password || "")).catch(() => false);
     return json(req, { token: signToken(u.id), user: publicUser(u) });
   }
 
@@ -80,6 +83,20 @@ export default async (req: Request, context: any) => {
     if (String(body.password || "").length < 6) return json(req, { error: "كلمة المرور الجديدة 6 أحرف على الأقل" }, 400);
     Object.assign(u, hashPassword(String(body.password)), { updatedAt: new Date().toISOString() });
     await saveUsers(users);
+    return json(req, { ok: true });
+  }
+
+  // ربط/فك ربط حساب منصة إسناد أوامر العمل من «حسابي» (عند اختلاف كلمة المرور هناك)
+  if (action === "wo-link" && req.method === "POST") {
+    const me = await currentUser(req);
+    if (!me) return json(req, { error: "سجّل الدخول أولاً" }, 401);
+    const ok = await woLink(me.id, me.email, String(body.password || "")).catch(() => false);
+    return ok ? json(req, { ok: true }) : json(req, { error: "تعذّر الدخول لمنصة أوامر العمل بهذا البريد وكلمة المرور" }, 400);
+  }
+  if (action === "wo-unlink" && req.method === "POST") {
+    const me = await currentUser(req);
+    if (!me) return json(req, { error: "سجّل الدخول أولاً" }, 401);
+    await woUnlink(me.id);
     return json(req, { ok: true });
   }
 

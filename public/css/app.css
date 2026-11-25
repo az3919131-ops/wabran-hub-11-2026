@@ -379,3 +379,7 @@ table.perm input { width: 18px; height: 18px; accent-color: var(--ink); }
 .wo-t tr.wo-bad td{background:color-mix(in srgb,var(--bad,#B8332A) 7%,transparent)}
 .wo-is{font-size:12px;color:var(--bad,#B8332A);min-width:120px}
 @media (max-width:760px){.wo-in{grid-template-columns:1fr}}
+.wo-link{margin-top:16px;padding-top:14px;border-top:1px solid var(--line,#D3DAD7)}
+.wo-link h4{margin:0 0 6px}
+.wo-link p{font-size:14px;color:var(--muted,#56686D);margin:0 0 8px}
+#woMode{padding:7px 10px;border:1px solid var(--line,#D3DAD7);border-radius:8px;background:var(--card,#fff);color:inherit;font:inherit}
